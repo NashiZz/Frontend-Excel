@@ -1,6 +1,6 @@
 "use client";
 
-import ExcelUpload from "./Components/pages/ExcelUpload/excelUpload";
+import ExcelUpload from "./Components/Pages/uploadFile_Page/excelUpload";
 
 export default function Home() {
   return (
