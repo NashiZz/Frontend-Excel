@@ -29,3 +29,4 @@ export const uploadExcelFile = async (file, setErrors, setSuccessMessage) => {
         }
     }
 };
+
