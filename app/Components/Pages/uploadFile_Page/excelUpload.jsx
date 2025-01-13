@@ -1,19 +1,38 @@
-import { uploadExcelFile, validateExcelFileWithHeaders } from '@/app/Service/dynamicService';
+import { uploadExcelFile, uploadExcelFileWithHeader, validateExcelFileWithHeaders } from '@/app/Service/dynamicService';
 import React, { useState } from 'react';
+import * as XLSX from 'xlsx';
 
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
+    const [headers, setHeaders] = useState([]);
     const [errors, setErrors] = useState([]);
     const [successMessage, setSuccessMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [uploadOption, setUploadOption] = useState('noTopic'); 
-    const [selectedTopic, setSelectedTopic] = useState('');
-    const topics = ['หัวข้อ A', 'หัวข้อ B', 'หัวข้อ C'];
+    const [uploadOption, setUploadOption] = useState('noTopic');
+    const [selectedHeader, setSelectedHeader] = useState('');
 
     const handleFileChange = (e) => {
-        setFile(e.target.files[0]);
+        const selectedFile = e.target.files[0];
+        setFile(selectedFile);
         setErrors([]);
         setSuccessMessage('');
+        setHeaders([]);
+
+        if (selectedFile) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                if (sheetData.length > 0) {
+                    setHeaders(sheetData[0]);
+                }
+            };
+            reader.readAsArrayBuffer(selectedFile);
+        }
     };
 
     const handleUpload = async () => {
@@ -35,22 +54,26 @@ const ExcelUpload = () => {
             return;
         }
 
-        if (uploadOption === 'withTopic' && !selectedTopic) {
+        if (uploadOption === 'withTopic' && !selectedHeader) {
             setErrors(['กรุณาเลือกหัวข้อที่ต้องการตรวจสอบ']);
             return;
         }
 
         setIsLoading(true);
 
-        await validateExcelFileWithHeaders(
-            file,
-            setErrors,
-            setSuccessMessage,
-            uploadOption === 'withTopic' ? selectedTopic : null
-        );
-
-        setIsLoading(false);
+        try {
+            if (uploadOption === 'withTopic') {
+                await uploadExcelFileWithHeader(file, selectedHeader, setErrors, setSuccessMessage);
+            } else {
+                await uploadExcelFile(file, setErrors, setSuccessMessage);
+            }
+        } catch (error) {
+            console.error('Error uploading file:', error);
+        } finally {
+            setIsLoading(false);
+        }
     };
+
 
     return (
         <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
@@ -86,19 +109,19 @@ const ExcelUpload = () => {
 
             {uploadOption === 'withTopic' && (
                 <div className="mb-4">
-                    <label htmlFor="topic" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="header" className="block text-sm font-medium text-gray-700">
                         เลือกหัวข้อที่ต้องการตรวจสอบ:
                     </label>
                     <select
-                        id="topic"
-                        value={selectedTopic}
-                        onChange={(e) => setSelectedTopic(e.target.value)}
+                        id="header"
+                        value={selectedHeader}
+                        onChange={(e) => setSelectedHeader(e.target.value)}
                         className="block w-full mt-1 text-sm border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
                     >
                         <option value="">-- เลือกหัวข้อ --</option>
-                        {topics.map((topic, index) => (
-                            <option key={index} value={topic}>
-                                {topic}
+                        {headers.map((header, index) => (
+                            <option key={index} value={header}>
+                                {header}
                             </option>
                         ))}
                     </select>
@@ -113,7 +136,7 @@ const ExcelUpload = () => {
             />
 
             <button
-                onClick={handleUpload}
+                onClick={uploadOption === 'withTopic' ? handleUploadHeader : handleUpload}
                 className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-md shadow-md transition duration-300"
                 disabled={isLoading}
             >
@@ -126,16 +149,7 @@ const ExcelUpload = () => {
                 </div>
             )}
 
-            {successMessage && (
-                <div className="mt-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded-md">
-                    <div className="flex items-center">
-                        <span className="text-2xl mr-2">✅</span>
-                        <p>{successMessage}</p>
-                    </div>
-                </div>
-            )}
-
-            {errors.length > 0 && (
+            {errors.length > 0 ? (
                 <div className="mt-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-md">
                     <h4 className="font-semibold text-lg mb-3 flex items-center">
                         <span className="text-xl mr-2">❌</span>
@@ -158,6 +172,13 @@ const ExcelUpload = () => {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            ) : successMessage && (
+                <div className="mt-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded-md">
+                    <div className="flex items-center">
+                        <span className="text-2xl mr-2">✅</span>
+                        <p>{successMessage}</p>
                     </div>
                 </div>
             )}

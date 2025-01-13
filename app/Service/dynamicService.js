@@ -30,3 +30,31 @@ export const uploadExcelFile = async (file, setErrors, setSuccessMessage) => {
     }
 };
 
+export const uploadExcelFileWithHeader = async (file, header, setErrors, setSuccessMessage) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("headers", header);
+
+    try {
+        const response = await axios.post(`${API_BASE_URL}/excel/headers`, formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        });
+
+        setSuccessMessage("✅ ตรวจสอบข้อมูลเรียบร้อย ไม่มีข้อผิดพลาด");
+        setErrors([]);
+    } catch (error) {
+        if (error.response) {
+            const errorData = error.response.data;
+            if (errorData.errors) {
+                setErrors(errorData.errors);
+            } else {
+                setErrors([errorData.message || "เกิดข้อผิดพลาด"]);
+            }
+        } else {
+            console.error("Error:", error.message);
+            setErrors(["❌ เกิดข้อผิดพลาดในการอัปโหลดไฟล์"]);
+        }
+    }
+};
