@@ -696,11 +696,14 @@ video {
 .gap-8 {
   gap: 2rem;
 }
+<<<<<<< HEAD
 .space-x-4 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-x-reverse: 0;
   margin-right: calc(1rem * var(--tw-space-x-reverse));
   margin-left: calc(1rem * calc(1 - var(--tw-space-x-reverse)));
 }
+=======
+>>>>>>> adb95e827f612034fc57f8b1df8bb6d2afeb40b6
 .overflow-y-auto {
   overflow-y: auto;
 }
@@ -798,10 +801,13 @@ video {
 .bg-foreground {
   background-color: var(--foreground);
 }
+<<<<<<< HEAD
 .bg-gray-500 {
   --tw-bg-opacity: 1;
   background-color: rgb(107 114 128 / var(--tw-bg-opacity, 1));
 }
+=======
+>>>>>>> adb95e827f612034fc57f8b1df8bb6d2afeb40b6
 .bg-opacity-50 {
   --tw-bg-opacity: 0.5;
 }
@@ -912,10 +918,13 @@ video {
 .text-background {
   color: var(--background);
 }
+<<<<<<< HEAD
 .text-red-600 {
   --tw-text-opacity: 1;
   color: rgb(220 38 38 / var(--tw-text-opacity, 1));
 }
+=======
+>>>>>>> adb95e827f612034fc57f8b1df8bb6d2afeb40b6
 .antialiased {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -1001,11 +1010,14 @@ body {
   background-color: rgb(242 242 242 / var(--tw-bg-opacity, 1));
 }
 
+<<<<<<< HEAD
 .hover\:bg-gray-600:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(75 85 99 / var(--tw-bg-opacity, 1));
 }
 
+=======
+>>>>>>> adb95e827f612034fc57f8b1df8bb6d2afeb40b6
 .hover\:underline:hover {
   text-decoration-line: underline;
 }
