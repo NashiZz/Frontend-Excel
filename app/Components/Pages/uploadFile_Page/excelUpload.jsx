@@ -177,7 +177,6 @@ const ExcelUpload = () => {
             ) : successMessage && (
                 <div className="mt-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded-md">
                     <div className="flex items-center">
-                        <span className="text-2xl mr-2">✅</span>
                         <p>{successMessage}</p>
                     </div>
                 </div>
