@@ -1,6 +1,7 @@
 import { uploadExcelFile, uploadExcelFileWithHeader, validateExcelFileWithHeaders } from '@/app/Service/dynamicService';
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
@@ -10,6 +11,7 @@ const ExcelUpload = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [uploadOption, setUploadOption] = useState('noTopic');
     const [selectedHeader, setSelectedHeader] = useState('');
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const handleFileChange = (e) => {
         const selectedFile = e.target.files[0];
@@ -19,6 +21,12 @@ const ExcelUpload = () => {
         setHeaders([]);
 
         if (selectedFile) {
+            const fileType = selectedFile.name.split('.').pop().toLowerCase();
+            if (fileType !== 'xlsx' && fileType !== 'xls') {
+                setErrors(['กรุณาเลือกไฟล์ Excel ที่มีนามสกุล .xlsx หรือ .xls']);
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = (event) => {
                 const data = new Uint8Array(event.target.result);
@@ -72,6 +80,19 @@ const ExcelUpload = () => {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const downloadErrorReport = () => {
+        const ws = XLSX.utils.aoa_to_sheet([
+            ['ลำดับ', 'ข้อผิดพลาด'],
+            ...errors.map((error, index) => [index + 1, error])
+        ]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'ข้อผิดพลาด');
+
+        const excelFile = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelFile], { type: 'application/octet-stream' });
+        saveAs(blob, 'error_report.xlsx');
     };
 
 
@@ -148,30 +169,48 @@ const ExcelUpload = () => {
                     <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
             )}
-
             {errors.length > 0 ? (
-                <div className="mt-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-md">
-                    <h4 className="font-semibold text-lg mb-3 flex items-center">
-                        <span className="text-xl mr-2">❌</span>
-                        พบข้อผิดพลาด:
-                    </h4>
-                    <div className="overflow-y-auto max-h-64">
-                        <table className="min-w-full table-auto text-sm">
-                            <thead>
-                                <tr className="bg-gray-200">
-                                    <th className="border px-4 py-2 text-left text-gray-600">ลำดับ</th>
-                                    <th className="border px-4 py-2 text-left text-gray-600">ข้อผิดพลาด</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {errors.map((error, index) => (
-                                    <tr key={index} className="border-t hover:bg-gray-50">
-                                        <td className="px-4 py-2">{index + 1}</td>
-                                        <td className="px-4 py-2">{error}</td>
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                    <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-lg p-6">
+                        <h4 className="font-semibold text-lg mb-4 flex items-center text-red-600">
+                            <span className="text-2xl mr-2">❌</span>
+                            พบข้อผิดพลาด:
+                        </h4>
+
+                        <div className="overflow-y-auto max-h-64">
+                            <table className="min-w-full table-auto text-sm">
+                                <thead>
+                                    <tr className="bg-gray-200">
+                                        <th className="border px-4 py-2 text-left text-gray-600">ลำดับ</th>
+                                        <th className="border px-4 py-2 text-left text-gray-600">ข้อผิดพลาด</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {errors.map((error, index) => (
+                                        <tr key={index} className="border-t hover:bg-gray-50">
+                                            <td className="px-4 py-2">{index + 1}</td>
+                                            <td className="px-4 py-2">{error}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="flex justify-between mt-6">
+                            <button
+                                onClick={downloadErrorReport} 
+                                className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md"
+                            >
+                                ดาวน์โหลดรายงานข้อผิดพลาด
+                            </button>
+                            <button
+                                onClick={() => setErrors([])}
+                                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md"
+                            >
+                                ปิด
+                            </button>
+                        </div>
+
                     </div>
                 </div>
             ) : successMessage && (
