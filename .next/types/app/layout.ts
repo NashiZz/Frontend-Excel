@@ -1,4 +1,4 @@
-// File: D:\Project\Front-Excel\Frontend-Excel\app\layout.js
+// File: /Users/prasopchocksancharoen/Documents/Intern-Poonsap/ProjectExcel/frontend-excel/app/layout.js
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
