@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
     const [headers, setHeaders] = useState([]);
+    const [rows, setRows] = useState([]);
     const [errors, setErrors] = useState([]);
     const [successMessage, setSuccessMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -19,6 +20,7 @@ const ExcelUpload = () => {
         setErrors([]);
         setSuccessMessage('');
         setHeaders([]);
+        setRows([]);
 
         if (selectedFile) {
             const fileType = selectedFile.name.split('.').pop().toLowerCase();
@@ -33,10 +35,24 @@ const ExcelUpload = () => {
                 const workbook = XLSX.read(data, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
+
+                // ดึงข้อมูลทั้งหมดในแผ่นงานโดยใช้ sheet_to_json
                 const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
+                // เช็คว่า sheetData มีข้อมูลหรือไม่
                 if (sheetData.length > 0) {
-                    setHeaders(sheetData[0]);
+                    setHeaders(sheetData[0]); // ตั้งค่าหัวข้อจากแถวแรก
+
+                    // ดึงแค่ข้อมูลที่ไม่ใช่หัวข้อ (เริ่มจากแถวที่ 2 เป็นต้นไป)
+                    const dataRows = sheetData.slice(1);
+
+                    // เช็คจำนวนแถวที่มีข้อมูล
+                    if (dataRows.length > 0) {
+                        console.log('จำนวนแถวข้อมูล:', dataRows.length); // แสดงจำนวนแถวข้อมูลในคอนโซล
+                    }
+
+                    // ตั้งค่าข้อมูลใน rows
+                    setRows(dataRows);
                 }
             };
             reader.readAsArrayBuffer(selectedFile);
@@ -54,7 +70,7 @@ const ExcelUpload = () => {
         try {
             await uploadExcelFile(file, setErrors, setSuccessMessage);
             toast.success('🎉 อัปโหลดไฟล์สำเร็จ!', {
-                position: 'top-right',
+                position: 'bottom-right',
                 autoClose: 3000,
                 hideProgressBar: false,
                 closeOnClick: true,
@@ -66,7 +82,7 @@ const ExcelUpload = () => {
         } catch (error) {
             console.error('Error uploading file:', error);
             toast.error('❌ การอัปโหลดล้มเหลว!', {
-                position: 'top-right',
+                position: 'bottom-right',
                 autoClose: 3000,
                 hideProgressBar: false,
                 closeOnClick: true,
@@ -107,25 +123,65 @@ const ExcelUpload = () => {
     };
 
     const downloadErrorReport = () => {
-        const ws = XLSX.utils.aoa_to_sheet([
-            ['ลำดับ', 'ข้อผิดพลาด'],
-            ...errors.map((error, index) => [index + 1, error])
-        ]);
+        const summaryData = [
+            ['ลำดับ', 'ข้อผิดพลาด', 'แถว', 'คอลัมน์'],
+            ...errors.map((error, index) => [
+                index + 1,
+                error.message,
+                error.row,
+                error.column 
+            ]),
+        ];
+        const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+    
+        const dataSheetData = [
+            headers,
+            ...rows
+        ];
+    
+        const dataSheet = XLSX.utils.aoa_to_sheet(dataSheetData);
+    
+        // ไฮไลต์เซลล์ที่มีข้อผิดพลาด
+        errors.forEach(({ row, column }) => {
+            const cellAddress = XLSX.utils.encode_cell({ r: row, c: column });
+            const cell = dataSheet[cellAddress];
+            console.log('Highlighting cell:', cellAddress, cell); // ตรวจสอบค่า cell
+            if (cell) {
+                // ตรวจสอบและเพิ่มการตั้งค่ารูปแบบ
+                if (!cell.s) cell.s = {}; // ถ้าไม่มีการตั้งค่า s ให้สร้างขึ้น
+                // ตั้งค่าสีพื้นหลัง
+                cell.s.fill = {
+                    fgColor: { rgb: 'FF0000' }, // กำหนดสีพื้นหลัง
+                };
+                // เพิ่มการตั้งค่าสีขอบ (optional)
+                if (!cell.s.border) {
+                    cell.s.border = {};
+                }
+                cell.s.border = {
+                    top: { style: 'thin', color: { rgb: '000000' } },
+                    bottom: { style: 'thin', color: { rgb: '000000' } },
+                    left: { style: 'thin', color: { rgb: '000000' } },
+                    right: { style: 'thin', color: { rgb: '000000' } }
+                };
+            }
+        });
+    
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'ข้อผิดพลาด');
-
+        XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
+        XLSX.utils.book_append_sheet(wb, dataSheet, 'Data');
+    
         const excelFile = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         const blob = new Blob([excelFile], { type: 'application/octet-stream' });
         saveAs(blob, 'error_report.xlsx');
     };
-
+    
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
-            
+
             <div className="max-w-md w-full mx-auto p-6 bg-white shadow-lg rounded-lg kanit-regular">
 
                 <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">📂 ตรวจสอบข้อมูลไฟล์ Excel</h2>
-                
+
                 <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">ตัวเลือกการอัปโหลด:</label>
                     <div className="flex items-center mb-2">
@@ -215,7 +271,9 @@ const ExcelUpload = () => {
                                         {errors.map((error, index) => (
                                             <tr key={index} className="border-t hover:bg-gray-50">
                                                 <td className="px-4 py-2">{index + 1}</td>
-                                                <td className="px-4 py-2">{error}</td>
+                                                <td className="px-4 py-2">
+                                                    {typeof error === 'object' ? JSON.stringify(error) : error}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>

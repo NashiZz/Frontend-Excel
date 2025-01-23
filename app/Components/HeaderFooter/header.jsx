@@ -1,5 +1,8 @@
 "use client";
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import { useState } from 'react';
+import { Link } from 'react-router';
+import * as XLSX from 'xlsx';
 
 function Header() {
     return (
@@ -24,6 +27,12 @@ function Header() {
                         <a href="/" className="hover:text-blue-300 flex items-center">
                             <i className="fas fa-home mr-2"></i> หน้าแรก
                         </a>
+                        <Link
+                            to="/template"
+                            className="hover:text-blue-300 flex items-center"
+                        >
+                            เทมเพลต
+                        </Link>
                         <a href="#about" className="hover:text-blue-300 flex items-center">
                             <i className="fas fa-info-circle mr-2"></i> คำแนะนำการใช้งาน
                         </a>
