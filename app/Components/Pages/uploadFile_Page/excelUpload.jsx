@@ -1,5 +1,6 @@
 import { uploadExcelFile, uploadExcelFileWithHeader, validateExcelFileWithHeaders } from '@/app/Service/dynamicService';
 import React, { useState } from 'react';
+import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { toast } from 'react-toastify';
@@ -21,43 +22,46 @@ const ExcelUpload = () => {
         setSuccessMessage('');
         setHeaders([]);
         setRows([]);
-
+    
         if (selectedFile) {
             const fileType = selectedFile.name.split('.').pop().toLowerCase();
             if (fileType !== 'xlsx' && fileType !== 'xls') {
                 setErrors(['กรุณาเลือกไฟล์ Excel ที่มีนามสกุล .xlsx หรือ .xls']);
                 return;
             }
-
+    
             const reader = new FileReader();
             reader.onload = (event) => {
                 const data = new Uint8Array(event.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
-
-                // ดึงข้อมูลทั้งหมดในแผ่นงานโดยใช้ sheet_to_json
-                const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-                // เช็คว่า sheetData มีข้อมูลหรือไม่
+    
+                const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    
                 if (sheetData.length > 0) {
-                    setHeaders(sheetData[0]); // ตั้งค่าหัวข้อจากแถวแรก
-
-                    // ดึงแค่ข้อมูลที่ไม่ใช่หัวข้อ (เริ่มจากแถวที่ 2 เป็นต้นไป)
-                    const dataRows = sheetData.slice(1);
-
-                    // เช็คจำนวนแถวที่มีข้อมูล
+                    setHeaders(sheetData[0]); 
+    
+                    const dataRows = sheetData.slice(1); 
+    
                     if (dataRows.length > 0) {
-                        console.log('จำนวนแถวข้อมูล:', dataRows.length); // แสดงจำนวนแถวข้อมูลในคอนโซล
-                    }
+                        console.log('จำนวนแถวข้อมูล:', dataRows.length);
 
-                    // ตั้งค่าข้อมูลใน rows
-                    setRows(dataRows);
+                        dataRows.forEach((row, rowIndex) => {
+                            row.forEach((cell, cellIndex) => {
+                                if (cell === '') {
+                                    console.log(`ช่องว่างในแถว ${rowIndex + 2}, คอลัมน์ ${cellIndex}`);
+                                }
+                            });
+                        });
+                    }
+    
+                    setRows(dataRows); 
                 }
             };
             reader.readAsArrayBuffer(selectedFile);
         }
-    };
+    };    
 
     const handleUpload = async () => {
         if (!file) {
@@ -122,59 +126,74 @@ const ExcelUpload = () => {
         }
     };
 
-    const downloadErrorReport = () => {
-        const summaryData = [
-            ['ลำดับ', 'ข้อผิดพลาด', 'แถว', 'คอลัมน์'],
-            ...errors.map((error, index) => [
-                index + 1,
-                error.message,
-                error.row,
-                error.column 
-            ]),
+    const downloadErrorReport = async () => {
+        const workbook = new ExcelJS.Workbook();
+        const summarySheet = workbook.addWorksheet('Summary');
+
+        summarySheet.columns = [
+            { width: 10 },
+            { width: 80 },
         ];
-        const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    
-        const dataSheetData = [
-            headers,
-            ...rows
-        ];
-    
-        const dataSheet = XLSX.utils.aoa_to_sheet(dataSheetData);
-    
-        // ไฮไลต์เซลล์ที่มีข้อผิดพลาด
-        errors.forEach(({ row, column }) => {
-            const cellAddress = XLSX.utils.encode_cell({ r: row, c: column });
-            const cell = dataSheet[cellAddress];
-            console.log('Highlighting cell:', cellAddress, cell); // ตรวจสอบค่า cell
-            if (cell) {
-                // ตรวจสอบและเพิ่มการตั้งค่ารูปแบบ
-                if (!cell.s) cell.s = {}; // ถ้าไม่มีการตั้งค่า s ให้สร้างขึ้น
-                // ตั้งค่าสีพื้นหลัง
-                cell.s.fill = {
-                    fgColor: { rgb: 'FF0000' }, // กำหนดสีพื้นหลัง
+
+        const summaryHeader = summarySheet.addRow(['ลำดับ', 'ข้อผิดพลาด']);
+
+        summaryHeader.height = 25;
+
+        summaryHeader.eachCell((cell) => {
+            cell.font = { bold: true };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+
+        const errorDetails = errors
+            .filter(error => error.errorDetails !== undefined)
+            .flatMap(error => error.errorDetails);
+
+        errorDetails.forEach((detail, index) => {
+            summarySheet.addRow([index + 1, detail.trim()]);
+        });
+
+        const dataSheet = workbook.addWorksheet('Data');
+
+        dataSheet.columns = headers.map(() => ({ width: 40 }));
+
+        const dataHeader = dataSheet.addRow(headers);
+
+        dataHeader.height = 25;
+
+        dataHeader.eachCell((cell) => {
+            cell.font = { bold: true };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+
+        rows.forEach((row) => {
+            dataSheet.addRow(row);
+        });
+
+        const validErrors = errors.filter(error => error.row !== undefined && error.column !== undefined);
+
+        validErrors.forEach(({ row, column }) => {
+            const dataRow = dataSheet.getRow(row + 1);
+            if (dataRow) {
+                const cell = dataRow.getCell(column + 1);
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFFF0000' },
                 };
-                // เพิ่มการตั้งค่าสีขอบ (optional)
-                if (!cell.s.border) {
-                    cell.s.border = {};
-                }
-                cell.s.border = {
-                    top: { style: 'thin', color: { rgb: '000000' } },
-                    bottom: { style: 'thin', color: { rgb: '000000' } },
-                    left: { style: 'thin', color: { rgb: '000000' } },
-                    right: { style: 'thin', color: { rgb: '000000' } }
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FF000000' } },
+                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                    left: { style: 'thin', color: { argb: 'FF000000' } },
+                    right: { style: 'thin', color: { argb: 'FF000000' } },
                 };
             }
         });
-    
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
-        XLSX.utils.book_append_sheet(wb, dataSheet, 'Data');
-    
-        const excelFile = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([excelFile], { type: 'application/octet-stream' });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/octet-stream' });
         saveAs(blob, 'error_report.xlsx');
     };
-    
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
 
@@ -268,14 +287,24 @@ const ExcelUpload = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {errors.map((error, index) => (
-                                            <tr key={index} className="border-t hover:bg-gray-50">
-                                                <td className="px-4 py-2">{index + 1}</td>
-                                                <td className="px-4 py-2">
-                                                    {typeof error === 'object' ? JSON.stringify(error) : error}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {errors.map((error, index) => {
+                                            if (typeof error === 'string') {
+                                                return (
+                                                    <tr key={index} className="border-t hover:bg-gray-50">
+                                                        <td className="px-4 py-2">{index + 1}</td>
+                                                        <td className="px-4 py-2">{error}</td>
+                                                    </tr>
+                                                );
+                                            } else if (error.summary) {
+                                                return error.errorDetails.map((detail, detailIndex) => (
+                                                    <tr key={`${index}-${detailIndex}`} className="border-t hover:bg-gray-50">
+                                                        <td className="px-4 py-2">{detailIndex + 1}</td>
+                                                        <td className="px-4 py-2">{detail}</td>
+                                                    </tr>
+                                                ));
+                                            }
+                                        })}
+
                                     </tbody>
                                 </table>
                             </div>
