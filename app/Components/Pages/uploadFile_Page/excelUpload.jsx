@@ -296,6 +296,20 @@ const ExcelUpload = () => {
                             ))}
                         </select>
                     </div>
+                    {selectedTemplate && condition.length > 0 && (
+                        <div className="mb-4">
+                            <div className="flex flex-wrap gap-2">
+                                {condition.map((cond, index) => (
+                                    <span
+                                        key={index}
+                                        className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm"
+                                    >
+                                        {cond}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <label className="block text-sm font-medium text-gray-700 mb-2">ตัวเลือกการอัปโหลด:</label>
                     <div className="flex items-center mb-2">
