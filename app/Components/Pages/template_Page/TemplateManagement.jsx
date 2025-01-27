@@ -1,0 +1,195 @@
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFileAlt, faEdit, faTrashAlt } from '@fortawesome/free-solid-svg-icons';
+
+const TemplateManagement = () => {
+  const [templates, setTemplates] = useState([]);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [currentTemplate, setCurrentTemplate] = useState(null);
+  const [editedTemplate, setEditedTemplate] = useState({ templatename: "", headers: [], maxRows: "" });
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const storedTemplates = JSON.parse(localStorage.getItem("templates")) || [];
+    setTemplates(storedTemplates);
+  }, []);
+
+  const handleDeleteTemplate = (templateName) => {
+    const updatedTemplates = templates.filter(
+      (template) => template.templatename !== templateName
+    );
+    setTemplates(updatedTemplates);
+    localStorage.setItem("templates", JSON.stringify(updatedTemplates));
+  };
+
+  const handleAddTemplate = () => {
+    navigate("/createtemplate");
+  };
+
+  const handleEditTemplate = (template) => {
+    setCurrentTemplate(template);
+    setEditedTemplate({ ...template });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    const updatedTemplates = templates.map((template) =>
+      template.templatename === currentTemplate.templatename ? editedTemplate : template
+    );
+    setTemplates(updatedTemplates);
+    localStorage.setItem("templates", JSON.stringify(updatedTemplates));
+    setIsEditDialogOpen(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditDialogOpen(false);
+    setEditedTemplate({ templatename: "", headers: [], maxRows: "" });
+  };
+
+  const handleHeaderChange = (index, field, value) => {
+    const updatedHeaders = [...editedTemplate.headers];
+    updatedHeaders[index][field] = value;
+    setEditedTemplate({
+      ...editedTemplate,
+      headers: updatedHeaders,
+    });
+  };
+
+  return (
+    <div className="container mx-auto p-6 pt-28">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">
+          <FontAwesomeIcon icon={faFileAlt} className="mr-2" />
+          จัดการเทมเพลต
+        </h1>
+        <button
+          onClick={handleAddTemplate}
+          className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
+        >
+          เพิ่มเทมเพลต
+        </button>
+      </div>
+      {templates.length === 0 ? (
+        <p className="text-gray-500">ไม่มีเทมเพลตที่บันทึก</p>
+      ) : (
+        <table className="table-auto w-full border-collapse border border-gray-200">
+          <thead>
+            <tr>
+              <th className="border border-gray-300 px-4 py-2">ชื่อเทมเพลต</th>
+              <th className="border border-gray-300 px-4 py-2">เงื่อนไขการตรวจสอบ</th>
+              <th className="border border-gray-300 px-4 py-2">จำนวน Row</th>
+              <th className="border border-gray-300 px-4 py-2">การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {templates.map((template, index) => (
+              <tr key={index}>
+                <td className="border border-gray-300 px-4 py-2">
+                  {template.templatename}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {template.headers.map((header, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs mr-2 mb-2"
+                    >
+                      {header.condition}
+                    </span>
+                  ))}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {template.maxRows}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-center">
+                  <button
+                    onClick={() => handleEditTemplate(template)}
+                    className="bg-green-500 text-white px-4 py-2 mr-4 rounded-md hover:bg-green-600"
+                  >
+                    <FontAwesomeIcon icon={faEdit} className="mr-2" />
+                    แก้ไข
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteTemplate(template.templatename)}
+                    className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600"
+                  >
+                    <FontAwesomeIcon icon={faTrashAlt} className="mr-2" />
+                    ลบ
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {isEditDialogOpen && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white p-6 rounded-md shadow-md w-96">
+            <h2 className="text-xl font-semibold mb-4">แก้ไขเทมเพลต</h2>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">ชื่อเทมเพลต</label>
+              <input
+                type="text"
+                value={editedTemplate.templatename}
+                onChange={(e) => setEditedTemplate({ ...editedTemplate, templatename: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">จำนวน Row</label>
+              <input
+                type="number"
+                value={editedTemplate.maxRows}
+                onChange={(e) => setEditedTemplate({ ...editedTemplate, maxRows: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">เงื่อนไขการตรวจสอบ</label>
+              {editedTemplate.headers.map((header, index) => (
+                <div key={index}>
+                  <label className="block text-sm font-medium text-gray-700 mt-4">เงื่อนไข</label>
+                  <select
+                    className="w-full border border-gray-300 rounded-md p-2 mt-2"
+                    value={header.condition}
+                    onChange={(e) => handleHeaderChange(index, 'condition', e.target.value)}
+                  >
+                    <option value="">เลือกเงื่อนไข</option>
+                    <option value="name">ตรวจสอบชื่อ</option>
+                    <option value="email">ตรวจสอบอีเมล</option>
+                    <option value="phone">ตรวจสอบเบอร์โทร</option>
+                    <option value="address">ตรวจสอบที่อยู่</option>
+                    <option value="citizenid">ตรวจสอบบัตรประชาชน</option>
+                    <option value="age">อายุ</option>
+                    <option value="gender">เพศ</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    เลือกเงื่อนไขที่ต้องการใช้ตรวจสอบค่าของคอลัมน์นี้
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={handleSaveEdit}
+                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 mr-2"
+              >
+                บันทึก
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+              >
+                ยกเลิก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TemplateManagement;

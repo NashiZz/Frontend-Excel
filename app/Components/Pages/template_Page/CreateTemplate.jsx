@@ -1,10 +1,33 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
 
 const CreateTemplate = () => {
+    const navigate = useNavigate(); 
     const [headers, setHeaders] = useState([{ name: "", condition: "" }]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [fileName, setFileName] = useState("template");
+    const [maxRows, setMaxRows] = useState(10);
+
+    const saveToLocalStorage = () => {
+        if (!fileName.trim()) {
+            alert("กรุณากรอกชื่อ Template");
+            return;
+        }
+
+        const newTemplate = {
+            templatename: fileName,
+            headers: headers,
+            maxRows: maxRows,
+        };
+
+        const existingTemplates = JSON.parse(localStorage.getItem("templates")) || [];
+        existingTemplates.push(newTemplate);
+        localStorage.setItem("templates", JSON.stringify(existingTemplates));
+
+        alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
+        setIsDialogOpen(false);
+    };
 
     const handleHeaderChange = (index, field, value) => {
         const newHeaders = [...headers];
@@ -65,9 +88,21 @@ const CreateTemplate = () => {
         setFileName(e.target.value);
     };
 
+    const handleBack = () => {
+        navigate("/template"); 
+    };
+
     return (
         <div className="container mx-auto p-6 pt-28">
-            <h1 className="text-2xl font-bold mb-6">สร้างเทมเพลตใหม่</h1>
+            <div className="flex mb-6">
+                <button
+                    onClick={handleBack}
+                    className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+                >
+                    กลับ
+                </button>
+                <h1 className="ml-8 text-2xl font-bold">สร้างเทมเพลตใหม่</h1>
+            </div>
             <div className="flex gap-6">
                 <div className="w-1/2">
                     <form onSubmit={handleSubmit}>
@@ -104,6 +139,10 @@ const CreateTemplate = () => {
                                     <option value="name">ตรวจสอบชื่อ</option>
                                     <option value="email">ตรวจสอบอีเมล</option>
                                     <option value="phone">ตรวจสอบเบอร์โทร</option>
+                                    <option value="address">ตรวจสอบที่อยู่</option>
+                                    <option value="citizenid">ตรวจสอบบัตรประชาชน</option>
+                                    <option value="age">อายุ</option>
+                                    <option value="gender">เพศ</option>
                                 </select>
                                 <p className="text-xs text-gray-500 mt-1">
                                     เลือกเงื่อนไขที่ต้องการใช้ตรวจสอบค่าของคอลัมน์นี้
@@ -120,15 +159,16 @@ const CreateTemplate = () => {
                         <div className="flex justify-end mt-6">
                             <button
                                 type="button"
+                                onClick={() => setIsDialogOpen(true)}
                                 className="mr-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
                             >
-                                ยกเลิก
+                                บันทึก
                             </button>
                             <button
                                 type="submit"
                                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                             >
-                                บันทึก
+                                บันทึกและดาวน์โหลดไฟล์
                             </button>
                         </div>
                     </form>
@@ -158,7 +198,7 @@ const CreateTemplate = () => {
 
             </div>
 
-            {isDialogOpen && (
+            {/* {isDialogOpen && (
                 <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
                     <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
                         <h3 className="text-xl font-semibold mb-4">ตั้งชื่อไฟล์</h3>
@@ -187,7 +227,50 @@ const CreateTemplate = () => {
                         </div>
                     </div>
                 </div>
+            )} */}
+            {isDialogOpen && (
+                <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
+                        <h3 className="text-xl font-semibold mb-4">ตั้งชื่อ Template</h3>
+                        <input
+                            type="text"
+                            className="w-full border border-gray-300 rounded-md p-2 mb-4"
+                            value={fileName}
+                            onChange={handleFileNameChange}
+                            placeholder="กรุณากรอกชื่อ Template"
+                        />
+                        <label htmlFor="maxRows" className="block text-sm font-medium text-gray-700 mb-2">จำนวนแถวสูงสุด:</label>
+                        <input
+                            type="number"
+                            id="maxRows"
+                            className="w-full border border-gray-300 rounded-md p-2 mt-2"
+                            value={maxRows}
+                            onChange={(e) => setMaxRows(Number(e.target.value))}
+                            min="1"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            กำหนดจำนวนแถวสูงสุดที่เทมเพลตสามารถรองรับได้
+                        </p>
+                        <div className="flex justify-end gap-4">
+                            <button
+                                type="button"
+                                onClick={() => setIsDialogOpen(false)}
+                                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md"
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                type="button"
+                                onClick={saveToLocalStorage}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md"
+                            >
+                                บันทึก
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
+
         </div>
     );
 };

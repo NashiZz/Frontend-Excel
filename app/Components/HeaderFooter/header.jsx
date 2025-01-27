@@ -1,8 +1,8 @@
 "use client";
 import '@fortawesome/fontawesome-free/css/all.min.css';
-import { useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFileAlt } from '@fortawesome/free-solid-svg-icons';
 import { Link } from 'react-router';
-import * as XLSX from 'xlsx';
 
 function Header() {
     return (
@@ -31,6 +31,7 @@ function Header() {
                             to="/template"
                             className="hover:text-blue-300 flex items-center"
                         >
+                            <FontAwesomeIcon icon={faFileAlt} className="mr-2" />
                             เทมเพลต
                         </Link>
                         <a href="#about" className="hover:text-blue-300 flex items-center">

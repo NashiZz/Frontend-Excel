@@ -1,5 +1,5 @@
-import { uploadExcelFile, uploadExcelFileWithHeader, validateExcelFileWithHeaders } from '@/app/Service/dynamicService';
-import React, { useState } from 'react';
+import { uploadExcelFile, uploadExcelFileWithHeader, uploadExcelFileWithTemplate, validateExcelFileWithHeaders } from '@/app/Service/dynamicService';
+import React, { useEffect, useState } from 'react';
 import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
@@ -14,6 +14,32 @@ const ExcelUpload = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [uploadOption, setUploadOption] = useState('noTopic');
     const [selectedHeader, setSelectedHeader] = useState('');
+    const [selectedTemplate, setSelectedTemplate] = useState('');
+    const [templates, setTemplates] = useState([]);
+    const [maxRows, setMaxRows] = useState(null);
+    const [condition, setCondition] = useState([]);
+
+    useEffect(() => {
+        const storedTemplates = JSON.parse(localStorage.getItem('templates')) || [];
+
+        const templateNames = storedTemplates.map((template) => template.templatename || 'Unnamed Template');
+
+        setTemplates(templateNames);
+    }, []);
+
+    useEffect(() => {
+        if (selectedTemplate) {
+            const storedTemplates = JSON.parse(localStorage.getItem('templates')) || [];
+            const selectedTemplateData = storedTemplates.find(template => template.templatename === selectedTemplate);
+
+            if (selectedTemplateData) {
+                setMaxRows(selectedTemplateData.maxRows);
+                setCondition(selectedTemplateData.headers.map(header => header.condition));
+            }
+        } else {
+            setMaxRows(null);
+        }
+    }, [selectedTemplate]);
 
     const handleFileChange = (e) => {
         const selectedFile = e.target.files[0];
@@ -22,28 +48,28 @@ const ExcelUpload = () => {
         setSuccessMessage('');
         setHeaders([]);
         setRows([]);
-    
+
         if (selectedFile) {
             const fileType = selectedFile.name.split('.').pop().toLowerCase();
             if (fileType !== 'xlsx' && fileType !== 'xls') {
                 setErrors(['กรุณาเลือกไฟล์ Excel ที่มีนามสกุล .xlsx หรือ .xls']);
                 return;
             }
-    
+
             const reader = new FileReader();
             reader.onload = (event) => {
                 const data = new Uint8Array(event.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
-    
+
                 const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-    
+
                 if (sheetData.length > 0) {
-                    setHeaders(sheetData[0]); 
-    
-                    const dataRows = sheetData.slice(1); 
-    
+                    setHeaders(sheetData[0]);
+
+                    const dataRows = sheetData.slice(1);
+
                     if (dataRows.length > 0) {
                         console.log('จำนวนแถวข้อมูล:', dataRows.length);
 
@@ -55,17 +81,22 @@ const ExcelUpload = () => {
                             });
                         });
                     }
-    
-                    setRows(dataRows); 
+
+                    setRows(dataRows);
                 }
             };
             reader.readAsArrayBuffer(selectedFile);
         }
-    };    
+    };
 
     const handleUpload = async () => {
         if (!file) {
             setErrors(['กรุณาเลือกไฟล์ Excel']);
+            return;
+        }
+
+        if (maxRows && rows.length > maxRows) {
+            setErrors([`จำนวนแถวข้อมูลของ template ไม่สามารถเกิน ${maxRows} แถวได้`]);
             return;
         }
 
@@ -111,6 +142,11 @@ const ExcelUpload = () => {
             return;
         }
 
+        if (maxRows && rows.length > maxRows) {
+            setErrors([`จำนวนแถวข้อมูลไม่สามารถเกิน ${maxRows} แถวได้`]);
+            return;
+        }
+
         setIsLoading(true);
 
         try {
@@ -121,6 +157,48 @@ const ExcelUpload = () => {
             }
         } catch (error) {
             console.error('Error uploading file:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    const handleUploadWithTemplate = async () => {
+        if (!file) {
+            setErrors(['กรุณาเลือกไฟล์ Excel']);
+            return;
+        }
+
+        if (maxRows && rows.length > maxRows) {
+            setErrors([`จำนวนแถวข้อมูลไม่สามารถเกิน ${maxRows} แถวได้`]);
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            const storedTemplates = JSON.parse(localStorage.getItem('templates')) || [];
+            const selectedTemplateData = storedTemplates.find(template => template.templatename === selectedTemplate);
+
+            if (!selectedTemplateData) {
+                setErrors(['ไม่พบข้อมูลเทมเพลต']);
+                return;
+            }
+
+            const conditions = selectedTemplateData.headers.map(header => header.condition);
+
+            await uploadExcelFileWithTemplate(file, conditions, setErrors, setSuccessMessage);
+
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            toast.error('❌ การอัปโหลดล้มเหลว!', {
+                position: 'bottom-right',
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: 'colored',
+            });
         } finally {
             setIsLoading(false);
         }
@@ -202,6 +280,23 @@ const ExcelUpload = () => {
                 <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">📂 ตรวจสอบข้อมูลไฟล์ Excel</h2>
 
                 <div className="mb-4">
+                    <div className="flex flex-col column items-start mb-2">
+                        <label htmlFor="template" className="block text-sm font-medium text-gray-700 mb-2">เลือกเทมเพลตที่ใช้ตรวจสอบ:</label>
+                        <select
+                            id="template"
+                            value={selectedTemplate}
+                            onChange={(e) => setSelectedTemplate(e.target.value || "")}
+                            className="block w-full mt-1 text-sm border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 mb-2"
+                        >
+                            <option value="">-- เลือกเทมเพลต --</option>
+                            {templates.map((template, index) => (
+                                <option key={index} value={template}>
+                                    {template}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
                     <label className="block text-sm font-medium text-gray-700 mb-2">ตัวเลือกการอัปโหลด:</label>
                     <div className="flex items-center mb-2">
                         <input
@@ -258,7 +353,7 @@ const ExcelUpload = () => {
                 />
 
                 <button
-                    onClick={uploadOption === 'withTopic' ? handleUploadHeader : handleUpload}
+                    onClick={selectedTemplate ? handleUploadWithTemplate : (uploadOption === 'withTopic' ? handleUploadHeader : handleUpload)}
                     className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-md shadow-md transition duration-300"
                     disabled={isLoading}
                 >
