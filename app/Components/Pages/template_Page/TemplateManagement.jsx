@@ -77,6 +77,7 @@ const TemplateManagement = () => {
           <thead>
             <tr>
               <th className="border border-gray-300 px-4 py-2">ชื่อเทมเพลต</th>
+              <th className="border border-gray-300 px-4 py-2">ชื่อ Header ของ Column</th>
               <th className="border border-gray-300 px-4 py-2">เงื่อนไขการตรวจสอบ</th>
               <th className="border border-gray-300 px-4 py-2">จำนวน Row</th>
               <th className="border border-gray-300 px-4 py-2">การจัดการ</th>
@@ -87,6 +88,16 @@ const TemplateManagement = () => {
               <tr key={index}>
                 <td className="border border-gray-300 px-4 py-2">
                   {template.templatename}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {template.headers.map((header, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs mr-2 mb-2"
+                    >
+                      {header.name}
+                    </span>
+                  ))}
                 </td>
                 <td className="border border-gray-300 px-4 py-2">
                   {template.headers.map((header, idx) => (
@@ -125,56 +136,68 @@ const TemplateManagement = () => {
       )}
 
       {isEditDialogOpen && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center">
-          <div className="bg-white p-6 rounded-md shadow-md w-96">
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center p-4">
+          <div className="bg-white p-6 rounded-md shadow-md">
             <h2 className="text-xl font-semibold mb-4">แก้ไขเทมเพลต</h2>
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">ชื่อเทมเพลต</label>
-              <input
-                type="text"
-                value={editedTemplate.templatename}
-                onChange={(e) => setEditedTemplate({ ...editedTemplate, templatename: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">จำนวน Row</label>
-              <input
-                type="number"
-                value={editedTemplate.maxRows}
-                onChange={(e) => setEditedTemplate({ ...editedTemplate, maxRows: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md"
-              />
+            <div className="flex flex-row justify-between mb-4">
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">ชื่อเทมเพลต</label>
+                <input
+                  type="text"
+                  value={editedTemplate.templatename}
+                  onChange={(e) => setEditedTemplate({ ...editedTemplate, templatename: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div className="mb-4 ml-8">
+                <label className="block text-sm font-medium mb-1">จำนวน Row</label>
+                <input
+                  type="number"
+                  value={editedTemplate.maxRows}
+                  onChange={(e) => setEditedTemplate({ ...editedTemplate, maxRows: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
             </div>
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">เงื่อนไขการตรวจสอบ</label>
               {editedTemplate.headers.map((header, index) => (
-                <div key={index}>
-                  <label className="block text-sm font-medium text-gray-700 mt-4">เงื่อนไข</label>
-                  <select
-                    className="w-full border border-gray-300 rounded-md p-2 mt-2"
-                    value={header.condition}
-                    onChange={(e) => handleHeaderChange(index, 'condition', e.target.value)}
-                  >
-                    <option value="">เลือกเงื่อนไข</option>
-                    <option value="name">ตรวจสอบชื่อ</option>
-                    <option value="email">ตรวจสอบอีเมล</option>
-                    <option value="phone">ตรวจสอบเบอร์โทร</option>
-                    <option value="address">ตรวจสอบที่อยู่</option>
-                    <option value="citizenid">ตรวจสอบบัตรประชาชน</option>
-                    <option value="age">อายุ</option>
-                    <option value="gender">เพศ</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    เลือกเงื่อนไขที่ต้องการใช้ตรวจสอบค่าของคอลัมน์นี้
-                  </p>
+                <div key={index} className="space-y-4">
+                  <div className="flex flex-row justify-between mb-4">
+                    <div className="mb-4">
+                      <label className="block mb-1 text-sm font-medium text-gray-700">ชื่อคอลัมน์</label>
+                      <input
+                        type="text"
+                        className="w-full border border-gray-300 rounded-md px-4 py-2"
+                        value={header.name}
+                        onChange={(e) => handleHeaderChange(index, 'name', e.target.value)}
+                      />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block mb-1 text-sm font-medium text-gray-700">เงื่อนไข</label>
+                      <select
+                        className="w-full border border-gray-300 rounded-md px-4 py-2"
+                        value={header.condition}
+                        onChange={(e) => handleHeaderChange(index, 'condition', e.target.value)}
+                      >
+                        <option value="">เลือกเงื่อนไข</option>
+                        <option value="name">ตรวจสอบชื่อ</option>
+                        <option value="email">ตรวจสอบอีเมล</option>
+                        <option value="phone">ตรวจสอบเบอร์โทร</option>
+                        <option value="address">ตรวจสอบที่อยู่</option>
+                        <option value="citizenid">ตรวจสอบบัตรประชาชน</option>
+                        <option value="age">ตรวจสอบอายุ</option>
+                        <option value="gender">ตรวจสอบเพศ</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
               <button
                 onClick={handleSaveEdit}
-                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 mr-2"
+                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
               >
                 บันทึก
               </button>
@@ -188,6 +211,7 @@ const TemplateManagement = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

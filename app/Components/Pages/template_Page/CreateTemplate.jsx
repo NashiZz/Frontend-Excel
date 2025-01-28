@@ -3,11 +3,39 @@ import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
 
 const CreateTemplate = () => {
-    const navigate = useNavigate(); 
+    const navigate = useNavigate();
     const [headers, setHeaders] = useState([{ name: "", condition: "" }]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isOptionDialogOpen, setIsOptionDialogOpen] = useState(false);
     const [fileName, setFileName] = useState("template");
     const [maxRows, setMaxRows] = useState(10);
+    const [columnConditions, setColumnConditions] = useState([]);
+    const [calculationType, setCalculationType] = useState('');
+    const [selectedHeader, setSelectedHeader] = useState(null);
+    const [calculationCondition, setCalculationCondition] = useState('');
+    const [valueCondition, setValueCondition] = useState('');
+    const [selectedColumns, setSelectedColumns] = useState({});
+
+    const conditions = [
+        { value: "name", label: "ตรวจสอบชื่อ" },
+        { value: "email", label: "ตรวจสอบอีเมล" },
+        { value: "phone", label: "ตรวจสอบเบอร์โทร" },
+        { value: "address", label: "ตรวจสอบที่อยู่" },
+        { value: "citizenid", label: "ตรวจสอบบัตรประชาชน" },
+        { value: "age", label: "ตรวจสอบอายุ" },
+        { value: "gender", label: "ตรวจสอบเพศ" },
+        { value: "balance", label: "ตรวจสอบเกี่ยวกับการเงิน" },
+    ];
+
+    const mockData = {
+        name: "John Doe",
+        email: "example@example.com",
+        phone: "0812345678",
+        address: "123 Main Street",
+        citizenid: "1234567890123",
+        age: "30",
+        gender: "ชาย",
+    };
 
     const saveToLocalStorage = () => {
         if (!fileName.trim()) {
@@ -44,14 +72,69 @@ const CreateTemplate = () => {
         setHeaders(newHeaders);
     };
 
+    const openOptionDialog = (header) => {
+        setSelectedHeader(header);
+        setIsOptionDialogOpen(true);
+    };
+
+    const closeOptionDialog = () => {
+        setIsOptionDialogOpen(false);
+        setSelectedHeader(null);
+    };
+
+    const handleCalculationTypeChange = (e) => {
+        setCalculationType(e.target.value);
+        setCalculationCondition(""); // Reset calculation condition when type changes
+    };
+
+    const handleColumnSelect = (column, type) => {
+        // 'type' จะบ่งบอกว่าเป็นคอลัมน์ที่ใช้ในการคำนวณหรือเป็นผลลัพธ์
+        setSelectedColumns((prev) => ({
+            ...prev,
+            [type]: column,
+        }));
+    };
+
+    const generateCalculationExample = () => {
+        if (selectedColumns[headers.name]) {
+            return `${selectedColumns.addend} ${calculationType} ${selectedColumns.operand} = ${selectedColumns.result}`;
+        }
+        return "";
+    };
+
+    const addCondition = () => {
+        if (selectedHeader) {
+            const newHeaders = headers.map((header) => {
+                if (header.name === selectedHeader.name) {
+                    return {
+                        ...header,
+                        calculationType,
+                        result: calculationCondition,
+                    };
+                }
+                return header;
+            });
+            setHeaders(newHeaders);
+        }
+        setIsOptionDialogOpen(false);
+        setSelectedHeader(null);
+    };
+
     const validateHeaders = () => {
         for (let i = 0; i < headers.length; i++) {
-            if (!headers[i].name.trim()) {
+            const header = headers[i];
+            if (!header.name.trim()) {
                 alert(`กรุณากรอกชื่อ Header ในบรรทัดที่ ${i + 1}`);
                 return false;
             }
-            if (!headers[i].condition.trim()) {
+            if (!header.condition.trim()) {
                 alert(`กรุณาเลือกเงื่อนไขในบรรทัดที่ ${i + 1}`);
+                return false;
+            }
+
+            const duplicate = headers.filter(h => h.name === header.name).length > 1;
+            if (duplicate) {
+                alert(`ชื่อ Header ในบรรทัดที่ ${i + 1} ซ้ำกัน`);
                 return false;
             }
         }
@@ -88,15 +171,11 @@ const CreateTemplate = () => {
         setFileName(e.target.value);
     };
 
-    const handleBack = () => {
-        navigate("/template"); 
-    };
-
     return (
         <div className="container mx-auto p-6 pt-28">
             <div className="flex mb-6">
                 <button
-                    onClick={handleBack}
+                    onClick={() => navigate("/template")}
                     className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
                 >
                     กลับ
@@ -128,7 +207,6 @@ const CreateTemplate = () => {
                                 <p className="text-xs text-gray-500 mt-1">
                                     ชื่อ Header จะถูกใช้เป็นชื่อคอลัมน์ในไฟล์ Excel
                                 </p>
-
                                 <label className="block text-sm font-medium text-gray-700 mt-4">เงื่อนไข</label>
                                 <select
                                     className="w-full border border-gray-300 rounded-md p-2 mt-2"
@@ -136,16 +214,12 @@ const CreateTemplate = () => {
                                     onChange={(e) => handleHeaderChange(index, 'condition', e.target.value)}
                                 >
                                     <option value="">เลือกเงื่อนไข</option>
-                                    <option value="name">ตรวจสอบชื่อ</option>
-                                    <option value="email">ตรวจสอบอีเมล</option>
-                                    <option value="phone">ตรวจสอบเบอร์โทร</option>
-                                    <option value="address">ตรวจสอบที่อยู่</option>
-                                    <option value="citizenid">ตรวจสอบบัตรประชาชน</option>
-                                    <option value="age">อายุ</option>
-                                    <option value="gender">เพศ</option>
+                                    {conditions.map(cond => (
+                                        <option key={cond.value} value={cond.value}>{cond.label}</option>
+                                    ))}
                                 </select>
                                 <p className="text-xs text-gray-500 mt-1">
-                                    เลือกเงื่อนไขที่ต้องการใช้ตรวจสอบค่าของคอลัมน์นี้
+                                    เลือกเงื่อนไขที่เหมาะสม เช่น <span title="ตัวอย่าง: John Doe">ตรวจสอบชื่อ</span> หรือ <span title="ตัวอย่าง: example@example.com">ตรวจสอบอีเมล</span>
                                 </p>
                             </div>
                         ))}
@@ -156,6 +230,15 @@ const CreateTemplate = () => {
                         >
                             เพิ่ม Header
                         </button>
+                        {headers.length > 1 && (
+                            <button
+                                type="button"
+                                onClick={openOptionDialog}
+                                className="ml-4 bg-gray-200 text-gray-700 rounded-md px-4 py-2 hover:bg-gray-300"
+                            >
+                                Option
+                            </button>
+                        )}
                         <div className="flex justify-end mt-6">
                             <button
                                 type="button"
@@ -188,7 +271,9 @@ const CreateTemplate = () => {
                             <tbody>
                                 <tr>
                                     {headers.map((header, index) => (
-                                        <td key={index} className="border px-4 py-2">{header.condition}</td>
+                                        <td key={index} className="border px-4 py-2">
+                                            {mockData[header.condition] || "-"}
+                                        </td>
                                     ))}
                                 </tr>
                             </tbody>
@@ -228,6 +313,100 @@ const CreateTemplate = () => {
                     </div>
                 </div>
             )} */}
+
+            {isOptionDialogOpen && (
+                <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
+                        <h3 className="text-xl font-semibold mb-4">เลือกเงื่อนไขสำหรับ {selectedHeader?.name}</h3>
+                        <div className="space-y-4">
+                            {/* Step 1: Select columns */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">เลือกคอลัมน์ที่จะคำนวณ</label>
+                                <div className="flex gap-4">
+                                    {headers.map((header) => (
+                                        <div key={header.name} className="flex flex-col">
+                                            {/* Select Addend (คอลัมน์ที่จะบวก) */}
+                                            <button
+                                                onClick={() => handleColumnSelect(header.name, 'addend')}
+                                                className={`px-4 py-2 border ${selectedColumns.addend === header.name ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+                                            >
+                                                {header.name} (คอลัมน์ที่ 1 สำหรับการบวก)
+                                            </button>
+
+                                            {/* Select Operand (คอลัมน์ที่สองที่จะบวก) */}
+                                            <button
+                                                onClick={() => handleColumnSelect(header.name, 'operand')}
+                                                className={`px-4 py-2 border ${selectedColumns.operand === header.name ? 'bg-yellow-600 text-white' : 'bg-white text-gray-700'}`}
+                                            >
+                                                {header.name} (คอลัมน์ที่ 2 สำหรับการบวก)
+                                            </button>
+
+                                            {/* Select Result (คอลัมน์ผลลัพธ์) */}
+                                            <button
+                                                onClick={() => handleColumnSelect(header.name, 'result')}
+                                                className={`px-4 py-2 border ${selectedColumns.result === header.name ? 'bg-green-600 text-white' : 'bg-white text-gray-700'}`}
+                                            >
+                                                {header.name} (คอลัมน์ผลลัพธ์)
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Step 2: Select calculation type */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">เลือกประเภทการคำนวณ</label>
+                                <select
+                                    value={calculationType}
+                                    onChange={handleCalculationTypeChange}
+                                    className="w-full border border-gray-300 rounded-md p-2"
+                                >
+                                    <option value="">เลือกประเภทการคำนวณ</option>
+                                    <option value="sum">บวก</option>
+                                    <option value="subtraction">ลบ</option>
+                                    <option value="multiplication">คูณ</option>
+                                    <option value="division">หาร</option>
+                                </select>
+                            </div>
+
+                            {/* Step 3: Enter calculation condition */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">เงื่อนไขการคำนวณ</label>
+                                <input
+                                    type="text"
+                                    value={calculationCondition}
+                                    onChange={(e) => setCalculationCondition(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-md p-2"
+                                    placeholder={`เช่น ${selectedColumns.addend} ${calculationType} ${selectedColumns.operand} = ${selectedColumns.result}`}
+                                />
+                            </div>
+
+                            {/* Step 4: Show the calculation example */}
+                            <div className="mt-2">
+                                <p className="text-sm font-medium text-gray-700">ตัวอย่างการคำนวณ:</p>
+                                <p className="text-gray-500">{generateCalculationExample()}</p>
+                            </div>
+
+                            {/* Footer with buttons */}
+                            <div className="flex justify-between mt-4">
+                                <button
+                                    onClick={addCondition}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                >
+                                    ยืนยัน
+                                </button>
+                                <button
+                                    onClick={closeOptionDialog}
+                                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                                >
+                                    ปิด
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {isDialogOpen && (
                 <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
                     <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">

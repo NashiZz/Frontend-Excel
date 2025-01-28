@@ -28,6 +28,7 @@ const ExcelUpload = () => {
     }, []);
 
     useEffect(() => {
+        setSuccessMessage("")
         if (selectedTemplate) {
             const storedTemplates = JSON.parse(localStorage.getItem('templates')) || [];
             const selectedTemplateData = storedTemplates.find(template => template.templatename === selectedTemplate);
@@ -38,6 +39,12 @@ const ExcelUpload = () => {
             }
         } else {
             setMaxRows(null);
+        }
+    }, [selectedTemplate]);
+
+    useEffect(() => {
+        if (selectedTemplate) {
+            setUploadOption('noTopic');
         }
     }, [selectedTemplate]);
 
@@ -100,6 +107,7 @@ const ExcelUpload = () => {
             return;
         }
 
+        setSuccessMessage("")
         setIsLoading(true);
 
         try {
@@ -147,6 +155,7 @@ const ExcelUpload = () => {
             return;
         }
 
+        setSuccessMessage("")
         setIsLoading(true);
 
         try {
@@ -161,6 +170,7 @@ const ExcelUpload = () => {
             setIsLoading(false);
         }
     };
+
     const handleUploadWithTemplate = async () => {
         if (!file) {
             setErrors(['กรุณาเลือกไฟล์ Excel']);
@@ -172,21 +182,37 @@ const ExcelUpload = () => {
             return;
         }
 
+        const storedTemplates = JSON.parse(localStorage.getItem('templates')) || [];
+        const selectedTemplateData = storedTemplates.find(template => template.templatename === selectedTemplate);
+
+        if (!selectedTemplateData) {
+            setErrors(['ไม่พบข้อมูลเทมเพลต']);
+            return;
+        }
+
+        const conditions = selectedTemplateData.headers.map(header => header.condition);
+        const templateNames = selectedTemplateData.headers.map(header => header.name);
+
+        const lowercaseHeaders = headers.map(header => header.toLowerCase());
+        const lowercaseTemplateNames = templateNames.map(name => name.toLowerCase());
+
+        const missingHeaders = lowercaseTemplateNames.filter(name => !lowercaseHeaders.includes(name));
+
+        if (headers.length !== conditions.length) {
+            setErrors([`จำนวนคอลัมน์ในไฟล์ Excel ต้องเท่ากับจำนวนเงื่อนไขในเทมเพลต (${conditions.length} คอลัมน์)`]);
+            return;
+        }
+
+        if (missingHeaders.length > 0) {
+            setErrors([`ไม่พบคอลัมน์ในไฟล์ Excel ที่ตรงกับชื่อในเทมเพลต: ${missingHeaders.join(', ')}`]);
+            return;
+        }
+
+        setSuccessMessage("");
         setIsLoading(true);
 
         try {
-            const storedTemplates = JSON.parse(localStorage.getItem('templates')) || [];
-            const selectedTemplateData = storedTemplates.find(template => template.templatename === selectedTemplate);
-
-            if (!selectedTemplateData) {
-                setErrors(['ไม่พบข้อมูลเทมเพลต']);
-                return;
-            }
-
-            const conditions = selectedTemplateData.headers.map(header => header.condition);
-
             await uploadExcelFileWithTemplate(file, conditions, setErrors, setSuccessMessage);
-
         } catch (error) {
             console.error('Error uploading file:', error);
             toast.error('❌ การอัปโหลดล้มเหลว!', {
@@ -311,31 +337,35 @@ const ExcelUpload = () => {
                         </div>
                     )}
 
-                    <label className="block text-sm font-medium text-gray-700 mb-2">ตัวเลือกการอัปโหลด:</label>
-                    <div className="flex items-center mb-2">
-                        <input
-                            type="radio"
-                            id="noTopic"
-                            name="uploadOption"
-                            value="noTopic"
-                            checked={uploadOption === 'noTopic'}
-                            onChange={(e) => setUploadOption(e.target.value)}
-                            className="mr-2"
-                        />
-                        <label htmlFor="noTopic" className="text-sm text-gray-700">ส่งไฟล์ให้ตรวจสอบ</label>
-                    </div>
-                    <div className="flex items-center">
-                        <input
-                            type="radio"
-                            id="withTopic"
-                            name="uploadOption"
-                            value="withTopic"
-                            checked={uploadOption === 'withTopic'}
-                            onChange={(e) => setUploadOption(e.target.value)}
-                            className="mr-2"
-                        />
-                        <label htmlFor="withTopic" className="text-sm text-gray-700">เลือกหัวข้อก่อนตรวจสอบไฟล์</label>
-                    </div>
+                    {selectedTemplate === "" && (
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">ตัวเลือกการอัปโหลด:</label>
+                            <div className="flex items-center mb-2">
+                                <input
+                                    type="radio"
+                                    id="noTopic"
+                                    name="uploadOption"
+                                    value="noTopic"
+                                    checked={uploadOption === 'noTopic'}
+                                    onChange={(e) => setUploadOption(e.target.value)}
+                                    className="mr-2"
+                                />
+                                <label htmlFor="noTopic" className="text-sm text-gray-700">ส่งไฟล์ให้ตรวจสอบ</label>
+                            </div>
+                            <div className="flex items-center">
+                                <input
+                                    type="radio"
+                                    id="withTopic"
+                                    name="uploadOption"
+                                    value="withTopic"
+                                    checked={uploadOption === 'withTopic'}
+                                    onChange={(e) => setUploadOption(e.target.value)}
+                                    className="mr-2"
+                                />
+                                <label htmlFor="withTopic" className="text-sm text-gray-700">เลือกหัวข้อก่อนตรวจสอบไฟล์</label>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {uploadOption === 'withTopic' && (
