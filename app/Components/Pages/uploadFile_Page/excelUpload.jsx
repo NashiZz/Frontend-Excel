@@ -1,15 +1,52 @@
-import { uploadExcelFile, uploadExcelFileWithHeader, validateExcelFileWithHeaders } from '@/app/Service/dynamicService';
-import React, { useState } from 'react';
+import { uploadExcelFile, uploadExcelFileWithHeader, uploadExcelFileWithTemplate, validateExcelFileWithHeaders } from '@/app/Service/dynamicService';
+import React, { useEffect, useState } from 'react';
+import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+import { toast } from 'react-toastify';
 
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
     const [headers, setHeaders] = useState([]);
+    const [rows, setRows] = useState([]);
     const [errors, setErrors] = useState([]);
     const [successMessage, setSuccessMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [uploadOption, setUploadOption] = useState('noTopic');
     const [selectedHeader, setSelectedHeader] = useState('');
+    const [selectedTemplate, setSelectedTemplate] = useState('');
+    const [templates, setTemplates] = useState([]);
+    const [maxRows, setMaxRows] = useState(null);
+    const [condition, setCondition] = useState([]);
+
+    useEffect(() => {
+        const storedTemplates = JSON.parse(localStorage.getItem('templates')) || [];
+
+        const templateNames = storedTemplates.map((template) => template.templatename || 'Unnamed Template');
+
+        setTemplates(templateNames);
+    }, []);
+
+    useEffect(() => {
+        setSuccessMessage("")
+        if (selectedTemplate) {
+            const storedTemplates = JSON.parse(localStorage.getItem('templates')) || [];
+            const selectedTemplateData = storedTemplates.find(template => template.templatename === selectedTemplate);
+
+            if (selectedTemplateData) {
+                setMaxRows(selectedTemplateData.maxRows);
+                setCondition(selectedTemplateData.headers.map(header => header.condition));
+            }
+        } else {
+            setMaxRows(null);
+        }
+    }, [selectedTemplate]);
+
+    useEffect(() => {
+        if (selectedTemplate) {
+            setUploadOption('noTopic');
+        }
+    }, [selectedTemplate]);
 
     const handleFileChange = (e) => {
         const selectedFile = e.target.files[0];
@@ -17,18 +54,42 @@ const ExcelUpload = () => {
         setErrors([]);
         setSuccessMessage('');
         setHeaders([]);
+        setRows([]);
 
         if (selectedFile) {
+            const fileType = selectedFile.name.split('.').pop().toLowerCase();
+            if (fileType !== 'xlsx' && fileType !== 'xls') {
+                setErrors(['กรุณาเลือกไฟล์ Excel ที่มีนามสกุล .xlsx หรือ .xls']);
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = (event) => {
                 const data = new Uint8Array(event.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
-                const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
                 if (sheetData.length > 0) {
                     setHeaders(sheetData[0]);
+
+                    const dataRows = sheetData.slice(1);
+
+                    if (dataRows.length > 0) {
+                        console.log('จำนวนแถวข้อมูล:', dataRows.length);
+
+                        dataRows.forEach((row, rowIndex) => {
+                            row.forEach((cell, cellIndex) => {
+                                if (cell === '') {
+                                    console.log(`ช่องว่างในแถว ${rowIndex + 2}, คอลัมน์ ${cellIndex}`);
+                                }
+                            });
+                        });
+                    }
+
+                    setRows(dataRows);
                 }
             };
             reader.readAsArrayBuffer(selectedFile);
@@ -41,11 +102,41 @@ const ExcelUpload = () => {
             return;
         }
 
+        if (maxRows && rows.length > maxRows) {
+            setErrors([`จำนวนแถวข้อมูลของ template ไม่สามารถเกิน ${maxRows} แถวได้`]);
+            return;
+        }
+
+        setSuccessMessage("")
         setIsLoading(true);
 
-        await uploadExcelFile(file, setErrors, setSuccessMessage);
-
-        setIsLoading(false);
+        try {
+            await uploadExcelFile(file, setErrors, setSuccessMessage);
+            toast.success('🎉 อัปโหลดไฟล์สำเร็จ!', {
+                position: 'bottom-right',
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: 'colored',
+            });
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            toast.error('❌ การอัปโหลดล้มเหลว!', {
+                position: 'bottom-right',
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: 'colored',
+            });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleUploadHeader = async () => {
@@ -59,6 +150,12 @@ const ExcelUpload = () => {
             return;
         }
 
+        if (maxRows && rows.length > maxRows) {
+            setErrors([`จำนวนแถวข้อมูลไม่สามารถเกิน ${maxRows} แถวได้`]);
+            return;
+        }
+
+        setSuccessMessage("")
         setIsLoading(true);
 
         try {
@@ -74,114 +171,307 @@ const ExcelUpload = () => {
         }
     };
 
+    const handleUploadWithTemplate = async () => {
+        if (!file) {
+            setErrors(['กรุณาเลือกไฟล์ Excel']);
+            return;
+        }
+
+        if (maxRows && rows.length > maxRows) {
+            setErrors([`จำนวนแถวข้อมูลไม่สามารถเกิน ${maxRows} แถวได้`]);
+            return;
+        }
+
+        const storedTemplates = JSON.parse(localStorage.getItem('templates')) || [];
+        const selectedTemplateData = storedTemplates.find(template => template.templatename === selectedTemplate);
+
+        if (!selectedTemplateData) {
+            setErrors(['ไม่พบข้อมูลเทมเพลต']);
+            return;
+        }
+
+        const conditions = selectedTemplateData.headers.map(header => header.condition);
+        const templateNames = selectedTemplateData.headers.map(header => header.name);
+
+        const lowercaseHeaders = headers.map(header => header.toLowerCase());
+        const lowercaseTemplateNames = templateNames.map(name => name.toLowerCase());
+
+        const missingHeaders = lowercaseTemplateNames.filter(name => !lowercaseHeaders.includes(name));
+
+        if (headers.length !== conditions.length) {
+            setErrors([`จำนวนคอลัมน์ในไฟล์ Excel ต้องเท่ากับจำนวนเงื่อนไขในเทมเพลต (${conditions.length} คอลัมน์)`]);
+            return;
+        }
+
+        if (missingHeaders.length > 0) {
+            setErrors([`ไม่พบคอลัมน์ในไฟล์ Excel ที่ตรงกับชื่อในเทมเพลต: ${missingHeaders.join(', ')}`]);
+            return;
+        }
+
+        setSuccessMessage("");
+        setIsLoading(true);
+
+        try {
+            await uploadExcelFileWithTemplate(file, conditions, setErrors, setSuccessMessage);
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            toast.error('❌ การอัปโหลดล้มเหลว!', {
+                position: 'bottom-right',
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: 'colored',
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const downloadErrorReport = async () => {
+        const workbook = new ExcelJS.Workbook();
+        const summarySheet = workbook.addWorksheet('Summary');
+
+        summarySheet.columns = [
+            { width: 10 },
+            { width: 80 },
+        ];
+
+        const summaryHeader = summarySheet.addRow(['ลำดับ', 'ข้อผิดพลาด']);
+
+        summaryHeader.height = 25;
+
+        summaryHeader.eachCell((cell) => {
+            cell.font = { bold: true };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+
+        const errorDetails = errors
+            .filter(error => error.errorDetails !== undefined)
+            .flatMap(error => error.errorDetails);
+
+        errorDetails.forEach((detail, index) => {
+            summarySheet.addRow([index + 1, detail.trim()]);
+        });
+
+        const dataSheet = workbook.addWorksheet('Data');
+
+        dataSheet.columns = headers.map(() => ({ width: 40 }));
+
+        const dataHeader = dataSheet.addRow(headers);
+
+        dataHeader.height = 25;
+
+        dataHeader.eachCell((cell) => {
+            cell.font = { bold: true };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+
+        rows.forEach((row) => {
+            dataSheet.addRow(row);
+        });
+
+        const validErrors = errors.filter(error => error.row !== undefined && error.column !== undefined);
+
+        validErrors.forEach(({ row, column }) => {
+            const dataRow = dataSheet.getRow(row + 1);
+            if (dataRow) {
+                const cell = dataRow.getCell(column + 1);
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFFF0000' },
+                };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FF000000' } },
+                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                    left: { style: 'thin', color: { argb: 'FF000000' } },
+                    right: { style: 'thin', color: { argb: 'FF000000' } },
+                };
+            }
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/octet-stream' });
+        saveAs(blob, 'error_report.xlsx');
+    };
 
     return (
-        <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
-            <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">📂 อัปโหลดไฟล์ Excel</h2>
+        <div className="min-h-screen flex items-center justify-center bg-gray-100">
 
-            <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">ตัวเลือกการอัปโหลด:</label>
-                <div className="flex items-center mb-2">
-                    <input
-                        type="radio"
-                        id="noTopic"
-                        name="uploadOption"
-                        value="noTopic"
-                        checked={uploadOption === 'noTopic'}
-                        onChange={(e) => setUploadOption(e.target.value)}
-                        className="mr-2"
-                    />
-                    <label htmlFor="noTopic" className="text-sm text-gray-700">ส่งไฟล์ให้ตรวจสอบเลย</label>
-                </div>
-                <div className="flex items-center">
-                    <input
-                        type="radio"
-                        id="withTopic"
-                        name="uploadOption"
-                        value="withTopic"
-                        checked={uploadOption === 'withTopic'}
-                        onChange={(e) => setUploadOption(e.target.value)}
-                        className="mr-2"
-                    />
-                    <label htmlFor="withTopic" className="text-sm text-gray-700">เลือกหัวข้อก่อนตรวจสอบไฟล์</label>
-                </div>
-            </div>
+            <div className="max-w-md w-full mx-auto p-6 bg-white shadow-lg rounded-lg kanit-regular">
 
-            {uploadOption === 'withTopic' && (
+                <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">📂 ตรวจสอบข้อมูลไฟล์ Excel</h2>
+
                 <div className="mb-4">
-                    <label htmlFor="header" className="block text-sm font-medium text-gray-700">
-                        เลือกหัวข้อที่ต้องการตรวจสอบ:
-                    </label>
-                    <select
-                        id="header"
-                        value={selectedHeader}
-                        onChange={(e) => setSelectedHeader(e.target.value)}
-                        className="block w-full mt-1 text-sm border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
-                    >
-                        <option value="">-- เลือกหัวข้อ --</option>
-                        {headers.map((header, index) => (
-                            <option key={index} value={header}>
-                                {header}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-            )}
-
-            <input
-                type="file"
-                accept=".xlsx, .xls"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer mb-4 p-2"
-            />
-
-            <button
-                onClick={uploadOption === 'withTopic' ? handleUploadHeader : handleUpload}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-md shadow-md transition duration-300"
-                disabled={isLoading}
-            >
-                {isLoading ? 'กำลังอัปโหลด...' : 'อัปโหลดไฟล์'}
-            </button>
-
-            {isLoading && (
-                <div className="mt-4 flex justify-center">
-                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-            )}
-
-            {errors.length > 0 ? (
-                <div className="mt-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-md">
-                    <h4 className="font-semibold text-lg mb-3 flex items-center">
-                        <span className="text-xl mr-2">❌</span>
-                        พบข้อผิดพลาด:
-                    </h4>
-                    <div className="overflow-y-auto max-h-64">
-                        <table className="min-w-full table-auto text-sm">
-                            <thead>
-                                <tr className="bg-gray-200">
-                                    <th className="border px-4 py-2 text-left text-gray-600">ลำดับ</th>
-                                    <th className="border px-4 py-2 text-left text-gray-600">ข้อผิดพลาด</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {errors.map((error, index) => (
-                                    <tr key={index} className="border-t hover:bg-gray-50">
-                                        <td className="px-4 py-2">{index + 1}</td>
-                                        <td className="px-4 py-2">{error}</td>
-                                    </tr>
+                    <div className="flex flex-col column items-start mb-2">
+                        <label htmlFor="template" className="block text-sm font-medium text-gray-700 mb-2">เลือกเทมเพลตที่ใช้ตรวจสอบ:</label>
+                        <select
+                            id="template"
+                            value={selectedTemplate}
+                            onChange={(e) => setSelectedTemplate(e.target.value || "")}
+                            className="block w-full mt-1 text-sm border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 mb-2"
+                        >
+                            <option value="">-- เลือกเทมเพลต --</option>
+                            {templates.map((template, index) => (
+                                <option key={index} value={template}>
+                                    {template}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    {selectedTemplate && condition.length > 0 && (
+                        <div className="mb-4">
+                            <div className="flex flex-wrap gap-2">
+                                {condition.map((cond, index) => (
+                                    <span
+                                        key={index}
+                                        className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm"
+                                    >
+                                        {cond}
+                                    </span>
                                 ))}
-                            </tbody>
-                        </table>
-                    </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {selectedTemplate === "" && (
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">ตัวเลือกการอัปโหลด:</label>
+                            <div className="flex items-center mb-2">
+                                <input
+                                    type="radio"
+                                    id="noTopic"
+                                    name="uploadOption"
+                                    value="noTopic"
+                                    checked={uploadOption === 'noTopic'}
+                                    onChange={(e) => setUploadOption(e.target.value)}
+                                    className="mr-2"
+                                />
+                                <label htmlFor="noTopic" className="text-sm text-gray-700">ส่งไฟล์ให้ตรวจสอบ</label>
+                            </div>
+                            <div className="flex items-center">
+                                <input
+                                    type="radio"
+                                    id="withTopic"
+                                    name="uploadOption"
+                                    value="withTopic"
+                                    checked={uploadOption === 'withTopic'}
+                                    onChange={(e) => setUploadOption(e.target.value)}
+                                    className="mr-2"
+                                />
+                                <label htmlFor="withTopic" className="text-sm text-gray-700">เลือกหัวข้อก่อนตรวจสอบไฟล์</label>
+                            </div>
+                        </div>
+                    )}
                 </div>
-            ) : successMessage && (
-                <div className="mt-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded-md">
-                    <div className="flex items-center">
-                        <span className="text-2xl mr-2">✅</span>
-                        <p>{successMessage}</p>
+
+                {uploadOption === 'withTopic' && (
+                    <div className="mb-4">
+                        <label htmlFor="header" className="block text-sm font-medium text-gray-700">
+                            เลือกหัวข้อที่ต้องการตรวจสอบ:
+                        </label>
+                        <select
+                            id="header"
+                            value={selectedHeader}
+                            onChange={(e) => setSelectedHeader(e.target.value)}
+                            className="block w-full mt-1 text-sm border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+                        >
+                            <option value="">-- เลือกหัวข้อ --</option>
+                            {headers.map((header, index) => (
+                                <option key={index} value={header}>
+                                    {header}
+                                </option>
+                            ))}
+                        </select>
                     </div>
-                </div>
-            )}
+                )}
+
+                <input
+                    type="file"
+                    accept=".xlsx, .xls"
+                    onChange={handleFileChange}
+                    className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer mb-4 p-2"
+                />
+
+                <button
+                    onClick={selectedTemplate ? handleUploadWithTemplate : (uploadOption === 'withTopic' ? handleUploadHeader : handleUpload)}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-md shadow-md transition duration-300"
+                    disabled={isLoading}
+                >
+                    {isLoading ? 'กำลังอัปโหลด...' : 'อัปโหลดไฟล์'}
+                </button>
+
+                {isLoading && (
+                    <div className="mt-4 flex justify-center">
+                        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                )}
+                {errors.length > 0 ? (
+                    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                        <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-lg p-6">
+                            <h4 className="font-semibold text-lg mb-4 flex items-center text-red-600">
+                                <span className="text-2xl mr-2">❌</span>
+                                พบข้อผิดพลาด:
+                            </h4>
+
+                            <div className="overflow-y-auto max-h-64">
+                                <table className="min-w-full table-auto text-sm">
+                                    <thead className="bg-gray-200 sticky top-0 z-10">
+                                        <tr>
+                                            <th className="border px-4 py-2 text-left text-gray-600">ลำดับ</th>
+                                            <th className="border px-4 py-2 text-left text-gray-600">ข้อผิดพลาด</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {errors.map((error, index) => {
+                                            if (typeof error === 'string') {
+                                                return (
+                                                    <tr key={index} className="border-t hover:bg-gray-50">
+                                                        <td className="px-4 py-2">{index + 1}</td>
+                                                        <td className="px-4 py-2">{error}</td>
+                                                    </tr>
+                                                );
+                                            } else if (error.summary) {
+                                                return error.errorDetails.map((detail, detailIndex) => (
+                                                    <tr key={`${index}-${detailIndex}`} className="border-t hover:bg-gray-50">
+                                                        <td className="px-4 py-2">{detailIndex + 1}</td>
+                                                        <td className="px-4 py-2">{detail}</td>
+                                                    </tr>
+                                                ));
+                                            }
+                                        })}
+
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="flex justify-between mt-6">
+                                <button
+                                    onClick={downloadErrorReport}
+                                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md"
+                                >
+                                    ดาวน์โหลดรายงานข้อผิดพลาด
+                                </button>
+                                <button
+                                    onClick={() => setErrors([])}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md"
+                                >
+                                    ปิด
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : successMessage && (
+                    <div className="mt-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded-md">
+                        <div className="flex items-center">
+                            <p>{successMessage}</p>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
