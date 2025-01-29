@@ -1,56 +1,3 @@
-<<<<<<< HEAD
-/*!***************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[2].use[1]!./node_modules/next/dist/build/webpack/loaders/next-font-loader/index.js??ruleSet[1].rules[13].oneOf[2].use[2]!./node_modules/next/font/google/target.css?{"path":"app\\layout.js","import":"Geist","arguments":[{"variable":"--font-geist-sans","subsets":["latin"]}],"variableName":"geistSans"} ***!
-  \***************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
-/* latin-ext */
-@font-face {
-  font-family: 'Geist';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url(/_next/static/media/ba015fad6dcf6784-s.woff2) format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-/* latin */
-@font-face {
-  font-family: 'Geist';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url(/_next/static/media/569ce4b8f30dc480-s.p.woff2) format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}@font-face {font-family: 'Geist Fallback';src: local("Arial");ascent-override: 95.94%;descent-override: 28.16%;line-gap-override: 0.00%;size-adjust: 104.76%
-}.__className_4d318d {font-family: 'Geist', 'Geist Fallback';font-style: normal
-}.__variable_4d318d {--font-geist-sans: 'Geist', 'Geist Fallback'
-}
-
-/*!********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[2].use[1]!./node_modules/next/dist/build/webpack/loaders/next-font-loader/index.js??ruleSet[1].rules[13].oneOf[2].use[2]!./node_modules/next/font/google/target.css?{"path":"app\\layout.js","import":"Geist_Mono","arguments":[{"variable":"--font-geist-mono","subsets":["latin"]}],"variableName":"geistMono"} ***!
-  \********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
-/* latin-ext */
-@font-face {
-  font-family: 'Geist Mono';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url(/_next/static/media/747892c23ea88013-s.woff2) format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-/* latin */
-@font-face {
-  font-family: 'Geist Mono';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url(/_next/static/media/93f479601ee12b01-s.p.woff2) format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}@font-face {font-family: 'Geist Mono Fallback';src: local("Arial");ascent-override: 74.67%;descent-override: 21.92%;line-gap-override: 0.00%;size-adjust: 134.59%
-}.__className_ea5f4b {font-family: 'Geist Mono', 'Geist Mono Fallback';font-style: normal
-}.__variable_ea5f4b {--font-geist-mono: 'Geist Mono', 'Geist Mono Fallback'
-}
-
-=======
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
 /*!*************************************************************************************************************************************************************************************************************************************************************!*\
   !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[3]!./app/globals.css ***!
   \*************************************************************************************************************************************************************************************************************************************************************/
@@ -557,9 +504,6 @@ video {
 [hidden]:where(:not([hidden="until-found"])) {
   display: none;
 }
-<<<<<<< HEAD
-.mx-auto {
-=======
 .container{
   width: 100%;
 }
@@ -615,7 +559,6 @@ video {
   z-index: 50;
 }
 .mx-auto{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   margin-left: auto;
   margin-right: auto;
 }
@@ -655,11 +598,19 @@ video {
 .mt-6{
   margin-top: 1.5rem;
 }
-<<<<<<< HEAD
-.block {
-=======
+.ml-2{
+  margin-left: 0.5rem;
+}
+.mt-8{
+  margin-top: 2rem;
+}
+.mt-16{
+  margin-top: 4rem;
+}
+.mb-16{
+  margin-bottom: 4rem;
+}
 .block{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   display: block;
 }
 .inline-block{
@@ -671,12 +622,6 @@ video {
 .table{
   display: table;
 }
-<<<<<<< HEAD
-.h-8 {
-  height: 2rem;
-}
-.max-h-64 {
-=======
 .hidden{
   display: none;
 }
@@ -687,7 +632,6 @@ video {
   height: 2rem;
 }
 .max-h-64{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   max-height: 16rem;
 }
 .min-h-screen{
@@ -738,15 +682,9 @@ video {
 .cursor-pointer{
   cursor: pointer;
 }
-<<<<<<< HEAD
-.items-center {
-  align-items: center;
+.list-disc{
+  list-style-type: disc;
 }
-.justify-center {
-  justify-content: center;
-}
-.overflow-y-auto {
-=======
 .flex-row{
   flex-direction: row;
 }
@@ -796,7 +734,6 @@ video {
   margin-bottom: calc(1rem * var(--tw-space-y-reverse));
 }
 .overflow-y-auto{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   overflow-y: auto;
 }
 .rounded-full{
@@ -808,11 +745,7 @@ video {
 .rounded-md{
   border-radius: 0.375rem;
 }
-<<<<<<< HEAD
-.border {
-=======
 .border{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   border-width: 1px;
 }
 .border-4{
@@ -824,11 +757,7 @@ video {
 .border-t{
   border-top-width: 1px;
 }
-<<<<<<< HEAD
-.border-blue-500 {
-=======
 .border-blue-500{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   --tw-border-opacity: 1;
   border-color: rgb(59 130 246 / var(--tw-border-opacity, 1));
 }
@@ -844,40 +773,6 @@ video {
   --tw-border-opacity: 1;
   border-color: rgb(34 197 94 / var(--tw-border-opacity, 1));
 }
-<<<<<<< HEAD
-.border-red-500 {
-  --tw-border-opacity: 1;
-  border-color: rgb(239 68 68 / var(--tw-border-opacity, 1));
-}
-.border-t-transparent {
-  border-top-color: transparent;
-}
-.bg-blue-500 {
-  --tw-bg-opacity: 1;
-  background-color: rgb(59 130 246 / var(--tw-bg-opacity, 1));
-}
-.bg-gray-200 {
-  --tw-bg-opacity: 1;
-  background-color: rgb(229 231 235 / var(--tw-bg-opacity, 1));
-}
-.bg-gray-50 {
-  --tw-bg-opacity: 1;
-  background-color: rgb(249 250 251 / var(--tw-bg-opacity, 1));
-}
-.bg-green-100 {
-  --tw-bg-opacity: 1;
-  background-color: rgb(220 252 231 / var(--tw-bg-opacity, 1));
-}
-.bg-red-100 {
-  --tw-bg-opacity: 1;
-  background-color: rgb(254 226 226 / var(--tw-bg-opacity, 1));
-}
-.bg-white {
-  --tw-bg-opacity: 1;
-  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
-}
-.p-2 {
-=======
 .border-t-transparent{
   border-top-color: transparent;
 }
@@ -944,7 +839,6 @@ video {
   padding: 0.25rem;
 }
 .p-2{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   padding: 0.5rem;
 }
 .p-4{
@@ -953,9 +847,6 @@ video {
 .p-6{
   padding: 1.5rem;
 }
-<<<<<<< HEAD
-.px-4 {
-=======
 .px-2{
   padding-left: 0.5rem;
   padding-right: 0.5rem;
@@ -965,7 +856,6 @@ video {
   padding-right: 0.75rem;
 }
 .px-4{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   padding-left: 1rem;
   padding-right: 1rem;
 }
@@ -981,24 +871,19 @@ video {
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
 }
-<<<<<<< HEAD
-.text-left {
-=======
 .pt-28{
   padding-top: 7rem;
 }
+.pl-5{
+  padding-left: 1.25rem;
+}
 .text-left{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   text-align: left;
 }
 .text-center{
   text-align: center;
 }
-<<<<<<< HEAD
-.text-2xl {
-=======
 .text-2xl{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   font-size: 1.5rem;
   line-height: 2rem;
 }
@@ -1075,11 +960,7 @@ video {
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
 }
-<<<<<<< HEAD
-.antialiased {
-=======
 .antialiased{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -1106,11 +987,7 @@ video {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
-<<<<<<< HEAD
-.duration-300 {
-=======
 .duration-300{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   transition-duration: 300ms;
 }
 
@@ -1131,9 +1008,6 @@ body {
   box-sizing: border-box;
 }
 
-<<<<<<< HEAD
-.hover\:bg-blue-600:hover {
-=======
 .kanit-regular {
   font-family: "Kanit", sans-serif;
   font-weight: 400;
@@ -1141,7 +1015,6 @@ body {
 }
 
 .hover\:bg-blue-600:hover{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   --tw-bg-opacity: 1;
   background-color: rgb(37 99 235 / var(--tw-bg-opacity, 1));
 }
@@ -1151,9 +1024,6 @@ body {
   background-color: rgb(29 78 216 / var(--tw-bg-opacity, 1));
 }
 
-<<<<<<< HEAD
-.focus\:border-blue-500:focus {
-=======
 .hover\:bg-gray-300:hover{
   --tw-bg-opacity: 1;
   background-color: rgb(209 213 219 / var(--tw-bg-opacity, 1));
@@ -1184,8 +1054,12 @@ body {
   color: rgb(147 197 253 / var(--tw-text-opacity, 1));
 }
 
+.hover\:text-red-800:hover{
+  --tw-text-opacity: 1;
+  color: rgb(153 27 27 / var(--tw-text-opacity, 1));
+}
+
 .focus\:border-blue-500:focus{
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d
   --tw-border-opacity: 1;
   border-color: rgb(59 130 246 / var(--tw-border-opacity, 1));
 }
@@ -1206,8 +1080,6 @@ body {
   --tw-ring-color: rgb(191 219 254 / var(--tw-ring-opacity, 1));
 }
 
-<<<<<<< HEAD
-=======
 @media (min-width: 768px){
 
   .md\:flex{
@@ -1268,4 +1140,3 @@ body {
 }.__variable_ea5f4b {--font-geist-mono: 'Geist Mono', 'Geist Mono Fallback'
 }
 
->>>>>>> 5c186fadbca965edd547e179612a4a8d95bff07d

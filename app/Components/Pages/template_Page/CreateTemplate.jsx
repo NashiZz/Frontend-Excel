@@ -12,7 +12,7 @@ const CreateTemplate = () => {
     const [maxRows, setMaxRows] = useState(10);
     const [calculationType, setCalculationType] = useState('');
     const [selectedHeader, setSelectedHeader] = useState(null);
-    const [calculationCondition, setCalculationCondition] = useState('');
+    const [calculationCondition, setCalculationCondition] = useState([]);
     const [selectedColumns, setSelectedColumns] = useState({});
 
     const conditions = [
@@ -31,19 +31,58 @@ const CreateTemplate = () => {
             alert("กรุณากรอกชื่อ Template");
             return;
         }
-    
+
         const newTemplate = {
             templatename: fileName,
-            headers: headers,  // headers จะมี calculations ที่บันทึกจาก addCondition
-            maxRows: maxRows
+            headers: headers, // headers ไม่เก็บเงื่อนไขอีกต่อไป
+            maxRows: maxRows,
+            condition: {
+                calculations: calculationCondition // เก็บเงื่อนไขแยกออกจาก headers
+            }
         };
-    
+
         const existingTemplates = JSON.parse(localStorage.getItem("templates")) || [];
         existingTemplates.push(newTemplate);
         localStorage.setItem("templates", JSON.stringify(existingTemplates));
-    
+
         alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
         setIsDialogOpen(false);
+    };
+
+    const addCondition = () => {
+        if (!calculationType || !selectedColumns.addend || !selectedColumns.operand || !selectedColumns.result) {
+            alert("กรุณากรอกค่าทั้งหมด");
+            return;
+        }
+    
+        const newCalculation = {
+            type: calculationType,
+            addend: selectedColumns.addend,
+            operand: selectedColumns.operand,
+            result: selectedColumns.result
+        };
+    
+        const isDuplicate = calculationCondition.some(
+            condition =>
+                condition.addend === newCalculation.addend &&
+                condition.type === newCalculation.type &&
+                condition.operand === newCalculation.operand &&
+                condition.result === newCalculation.result
+        );
+    
+        if (isDuplicate) {
+            alert("เงื่อนไขนี้ถูกเพิ่มไปแล้ว");
+            return;
+        }
+    
+        setCalculationCondition(prevCalculations => [...prevCalculations, newCalculation]);
+    
+        setCalculationType('');
+        setSelectedColumns({
+            addend: '',
+            operand: '',
+            result: ''
+        });
     };    
 
     const handleHeaderChange = (index, field, value) => {
@@ -73,37 +112,30 @@ const CreateTemplate = () => {
 
     const handleCalculationTypeChange = (e) => {
         setCalculationType(e.target.value);
-        setCalculationCondition("");
     };
 
-    const handleColumnSelect = (column, type) => {
-        setSelectedColumns((prev) => ({
-            ...prev,
-            [type]: column,
+    const removeCondition = (index) => {
+        const updatedConditions = calculationCondition.filter((_, i) => i !== index);
+        setCalculationCondition(updatedConditions);
+    };
+
+    const handleColumnSelect = (columnName, columnType) => {
+        if (columnType === 'addend' && (selectedColumns.operand === columnName || selectedColumns.result === columnName)) {
+            return; 
+        }
+        if (columnType === 'operand' && (selectedColumns.addend === columnName || selectedColumns.result === columnName)) {
+            return;
+        }
+        if (columnType === 'result' && (selectedColumns.addend === columnName || selectedColumns.operand === columnName)) {
+            return; 
+        }
+    
+        setSelectedColumns(prevState => ({
+            ...prevState,
+            [columnType]: columnName
         }));
     };
-
-    const addCondition = () => {
-        if (selectedHeader) {
-            const newHeaders = headers.map((header) => {
-                if (header.name === selectedHeader.name) {
-                    return {
-                        ...header,
-                        calculations: {
-                            type: calculationType,
-                            addend: selectedColumns.addend || "",
-                            operand: selectedColumns.operand || "",
-                            result: selectedColumns.result || ""
-                        }
-                    };
-                }
-                return header;
-            });
-            setHeaders(newHeaders);
-        }
-        setIsOptionDialogOpen(false);
-        setSelectedHeader(null);
-    };
+    
 
     const validateHeaders = () => {
         for (let i = 0; i < headers.length; i++) {
@@ -265,8 +297,17 @@ const CreateTemplate = () => {
                             </tbody>
                         </table>
                     </div>
+                    {calculationCondition && calculationCondition.length > 0 && (
+                        <div className="mt-4">
+                            <h4 className="text-lg font-semibold">เงื่อนไขที่เพิ่มเข้ามา:</h4>
+                            <ul className="list-disc pl-5">
+                                {calculationCondition.map((condition, index) => (
+                                    <li key={index}>{`${condition.addend} ${condition.type} ${condition.operand} = ${condition.result}`}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </div>
-
             </div>
 
             {isDowloadDialogOpen && (
@@ -305,13 +346,11 @@ const CreateTemplate = () => {
                     <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
                         <h3 className="text-xl font-semibold mb-4">เลือกเงื่อนไขสำหรับ {selectedHeader?.name}</h3>
                         <div className="space-y-4">
-
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">เลือกคอลัมน์ที่จะคำนวณ</label>
                                 <div className="flex gap-4">
                                     {headers.map((header) => (
                                         <div key={header.name} className="flex flex-col">
-
                                             <button
                                                 onClick={() => handleColumnSelect(header.name, 'addend')}
                                                 className={`px-4 py-2 border ${selectedColumns.addend === header.name ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
@@ -361,6 +400,24 @@ const CreateTemplate = () => {
                                     className="w-full border border-gray-300 rounded-md p-2"
                                     placeholder={`เช่น ${selectedColumns.addend} ${calculationType} ${selectedColumns.operand} = ${selectedColumns.result}`}
                                 />
+                                {calculationCondition.length > 0 && (
+                                    <div className="mt-4 mb-6">
+                                        <h4 className="text-lg font-semibold">เงื่อนไขที่เพิ่มเข้ามา:</h4>
+                                        <ul className="list-disc pl-5">
+                                            {calculationCondition.map((condition, index) => (
+                                                <li key={index} className="flex justify-between items-center">
+                                                    {`${condition.addend} ${condition.type} ${condition.operand} = ${condition.result}`}
+                                                    <button
+                                                        onClick={() => removeCondition(index)}
+                                                        className="ml-2 text-red-600 hover:text-red-800"
+                                                    >
+                                                        ลบ
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex justify-between mt-4">
@@ -368,7 +425,7 @@ const CreateTemplate = () => {
                                     onClick={addCondition}
                                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                                 >
-                                    ยืนยัน
+                                    เพิ่มเงื่อนไข
                                 </button>
                                 <button
                                     onClick={closeOptionDialog}

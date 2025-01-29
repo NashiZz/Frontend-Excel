@@ -192,6 +192,7 @@ const ExcelUpload = () => {
 
         const conditions = selectedTemplateData.headers.map(header => header.condition);
         const templateNames = selectedTemplateData.headers.map(header => header.name);
+        const calculater = selectedTemplateData.condition?.calculations || [];
 
         const lowercaseHeaders = headers.map(header => header.toLowerCase());
         const lowercaseTemplateNames = templateNames.map(name => name.toLowerCase());
@@ -212,7 +213,7 @@ const ExcelUpload = () => {
         setIsLoading(true);
 
         try {
-            await uploadExcelFileWithTemplate(file, conditions, setErrors, setSuccessMessage);
+            await uploadExcelFileWithTemplate(file, conditions, calculater, setErrors, setSuccessMessage);
         } catch (error) {
             console.error('Error uploading file:', error);
             toast.error('❌ การอัปโหลดล้มเหลว!', {
