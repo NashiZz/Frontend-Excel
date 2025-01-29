@@ -6,14 +6,13 @@ const CreateTemplate = () => {
     const navigate = useNavigate();
     const [headers, setHeaders] = useState([{ name: "", condition: "" }]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isDowloadDialogOpen, setIsDowloadDialogOpen] = useState(false);
     const [isOptionDialogOpen, setIsOptionDialogOpen] = useState(false);
     const [fileName, setFileName] = useState("template");
     const [maxRows, setMaxRows] = useState(10);
-    const [columnConditions, setColumnConditions] = useState([]);
     const [calculationType, setCalculationType] = useState('');
     const [selectedHeader, setSelectedHeader] = useState(null);
     const [calculationCondition, setCalculationCondition] = useState('');
-    const [valueCondition, setValueCondition] = useState('');
     const [selectedColumns, setSelectedColumns] = useState({});
 
     const conditions = [
@@ -27,35 +26,25 @@ const CreateTemplate = () => {
         { value: "balance", label: "ตรวจสอบเกี่ยวกับการเงิน" },
     ];
 
-    const mockData = {
-        name: "John Doe",
-        email: "example@example.com",
-        phone: "0812345678",
-        address: "123 Main Street",
-        citizenid: "1234567890123",
-        age: "30",
-        gender: "ชาย",
-    };
-
     const saveToLocalStorage = () => {
         if (!fileName.trim()) {
             alert("กรุณากรอกชื่อ Template");
             return;
         }
-
+    
         const newTemplate = {
             templatename: fileName,
-            headers: headers,
-            maxRows: maxRows,
+            headers: headers,  // headers จะมี calculations ที่บันทึกจาก addCondition
+            maxRows: maxRows
         };
-
+    
         const existingTemplates = JSON.parse(localStorage.getItem("templates")) || [];
         existingTemplates.push(newTemplate);
         localStorage.setItem("templates", JSON.stringify(existingTemplates));
-
+    
         alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
         setIsDialogOpen(false);
-    };
+    };    
 
     const handleHeaderChange = (index, field, value) => {
         const newHeaders = [...headers];
@@ -84,22 +73,14 @@ const CreateTemplate = () => {
 
     const handleCalculationTypeChange = (e) => {
         setCalculationType(e.target.value);
-        setCalculationCondition(""); // Reset calculation condition when type changes
+        setCalculationCondition("");
     };
 
     const handleColumnSelect = (column, type) => {
-        // 'type' จะบ่งบอกว่าเป็นคอลัมน์ที่ใช้ในการคำนวณหรือเป็นผลลัพธ์
         setSelectedColumns((prev) => ({
             ...prev,
             [type]: column,
         }));
-    };
-
-    const generateCalculationExample = () => {
-        if (selectedColumns[headers.name]) {
-            return `${selectedColumns.addend} ${calculationType} ${selectedColumns.operand} = ${selectedColumns.result}`;
-        }
-        return "";
     };
 
     const addCondition = () => {
@@ -108,8 +89,12 @@ const CreateTemplate = () => {
                 if (header.name === selectedHeader.name) {
                     return {
                         ...header,
-                        calculationType,
-                        result: calculationCondition,
+                        calculations: {
+                            type: calculationType,
+                            addend: selectedColumns.addend || "",
+                            operand: selectedColumns.operand || "",
+                            result: selectedColumns.result || ""
+                        }
                     };
                 }
                 return header;
@@ -245,13 +230,14 @@ const CreateTemplate = () => {
                                 onClick={() => setIsDialogOpen(true)}
                                 className="mr-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
                             >
-                                บันทึก
+                                บันทึก Template
                             </button>
                             <button
-                                type="submit"
+                                type="button"
+                                onClick={() => setIsDowloadDialogOpen(true)}
                                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                             >
-                                บันทึกและดาวน์โหลดไฟล์
+                                ดาวน์โหลดไฟล์
                             </button>
                         </div>
                     </form>
@@ -272,7 +258,7 @@ const CreateTemplate = () => {
                                 <tr>
                                     {headers.map((header, index) => (
                                         <td key={index} className="border px-4 py-2">
-                                            {mockData[header.condition] || "-"}
+                                            {header.condition}
                                         </td>
                                     ))}
                                 </tr>
@@ -283,7 +269,7 @@ const CreateTemplate = () => {
 
             </div>
 
-            {/* {isDialogOpen && (
+            {isDowloadDialogOpen && (
                 <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
                     <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
                         <h3 className="text-xl font-semibold mb-4">ตั้งชื่อไฟล์</h3>
@@ -297,7 +283,7 @@ const CreateTemplate = () => {
                         <div className="flex justify-end gap-4">
                             <button
                                 type="button"
-                                onClick={() => setIsDialogOpen(false)}
+                                onClick={() => setIsDowloadDialogOpen(false)}
                                 className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md"
                             >
                                 ยกเลิก
@@ -312,36 +298,34 @@ const CreateTemplate = () => {
                         </div>
                     </div>
                 </div>
-            )} */}
+            )}
 
             {isOptionDialogOpen && (
                 <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
                     <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
                         <h3 className="text-xl font-semibold mb-4">เลือกเงื่อนไขสำหรับ {selectedHeader?.name}</h3>
                         <div className="space-y-4">
-                            {/* Step 1: Select columns */}
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">เลือกคอลัมน์ที่จะคำนวณ</label>
                                 <div className="flex gap-4">
                                     {headers.map((header) => (
                                         <div key={header.name} className="flex flex-col">
-                                            {/* Select Addend (คอลัมน์ที่จะบวก) */}
+
                                             <button
                                                 onClick={() => handleColumnSelect(header.name, 'addend')}
                                                 className={`px-4 py-2 border ${selectedColumns.addend === header.name ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
                                             >
-                                                {header.name} (คอลัมน์ที่ 1 สำหรับการบวก)
+                                                {header.name}
                                             </button>
 
-                                            {/* Select Operand (คอลัมน์ที่สองที่จะบวก) */}
                                             <button
                                                 onClick={() => handleColumnSelect(header.name, 'operand')}
                                                 className={`px-4 py-2 border ${selectedColumns.operand === header.name ? 'bg-yellow-600 text-white' : 'bg-white text-gray-700'}`}
                                             >
-                                                {header.name} (คอลัมน์ที่ 2 สำหรับการบวก)
+                                                {header.name}
                                             </button>
 
-                                            {/* Select Result (คอลัมน์ผลลัพธ์) */}
                                             <button
                                                 onClick={() => handleColumnSelect(header.name, 'result')}
                                                 className={`px-4 py-2 border ${selectedColumns.result === header.name ? 'bg-green-600 text-white' : 'bg-white text-gray-700'}`}
@@ -353,7 +337,6 @@ const CreateTemplate = () => {
                                 </div>
                             </div>
 
-                            {/* Step 2: Select calculation type */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">เลือกประเภทการคำนวณ</label>
                                 <select
@@ -362,32 +345,24 @@ const CreateTemplate = () => {
                                     className="w-full border border-gray-300 rounded-md p-2"
                                 >
                                     <option value="">เลือกประเภทการคำนวณ</option>
-                                    <option value="sum">บวก</option>
-                                    <option value="subtraction">ลบ</option>
-                                    <option value="multiplication">คูณ</option>
-                                    <option value="division">หาร</option>
+                                    <option value="+">บวก</option>
+                                    <option value="-">ลบ</option>
+                                    <option value="x">คูณ</option>
+                                    <option value="/">หาร</option>
                                 </select>
                             </div>
 
-                            {/* Step 3: Enter calculation condition */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">เงื่อนไขการคำนวณ</label>
                                 <input
                                     type="text"
-                                    value={calculationCondition}
+                                    value={`${selectedColumns.addend} ${calculationType} ${selectedColumns.operand} = ${selectedColumns.result}`}
                                     onChange={(e) => setCalculationCondition(e.target.value)}
                                     className="w-full border border-gray-300 rounded-md p-2"
                                     placeholder={`เช่น ${selectedColumns.addend} ${calculationType} ${selectedColumns.operand} = ${selectedColumns.result}`}
                                 />
                             </div>
 
-                            {/* Step 4: Show the calculation example */}
-                            <div className="mt-2">
-                                <p className="text-sm font-medium text-gray-700">ตัวอย่างการคำนวณ:</p>
-                                <p className="text-gray-500">{generateCalculationExample()}</p>
-                            </div>
-
-                            {/* Footer with buttons */}
                             <div className="flex justify-between mt-4">
                                 <button
                                     onClick={addCondition}
