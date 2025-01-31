@@ -188,6 +188,7 @@ const TemplateManagement = () => {
                         <option value="citizenid">ตรวจสอบบัตรประชาชน</option>
                         <option value="age">ตรวจสอบอายุ</option>
                         <option value="gender">ตรวจสอบเพศ</option>
+                        <option value="balance">ตรวจสอบเกี่ยวกับการเงิน</option>
                       </select>
                     </div>
                   </div>
