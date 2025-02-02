@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
 
+
 const CreateTemplate = () => {
     const navigate = useNavigate();
     const [headers, setHeaders] = useState([{ name: "", condition: "" }]);
@@ -26,28 +27,39 @@ const CreateTemplate = () => {
         { value: "balance", label: "ตรวจสอบเกี่ยวกับการเงิน" },
     ];
 
+    const getUserToken = () => {
+        let token = localStorage.getItem("userToken");
+        if (!token) {
+            token = uuidv4(); 
+            localStorage.setItem("userToken", token);
+        }
+        return token;
+    };    
+
     const saveToLocalStorage = () => {
         if (!fileName.trim()) {
             alert("กรุณากรอกชื่อ Template");
             return;
         }
-
+    
+        const userToken = getUserToken(); 
         const newTemplate = {
+            userToken: userToken, 
             templatename: fileName,
-            headers: headers, // headers ไม่เก็บเงื่อนไขอีกต่อไป
+            headers: headers,
             maxRows: maxRows,
             condition: {
-                calculations: calculationCondition // เก็บเงื่อนไขแยกออกจาก headers
+                calculations: calculationCondition
             }
         };
-
+    
         const existingTemplates = JSON.parse(localStorage.getItem("templates")) || [];
         existingTemplates.push(newTemplate);
         localStorage.setItem("templates", JSON.stringify(existingTemplates));
-
+    
         alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
         setIsDialogOpen(false);
-    };
+    }; 
 
     const addCondition = () => {
         if (!calculationType || !selectedColumns.addend || !selectedColumns.operand || !selectedColumns.result) {
