@@ -23,6 +23,8 @@ export const downloadErrorReport = async (errors, headers, rows) => {
         .filter(error => error.errorDetails !== undefined)
         .flatMap(error => error.errorDetails);
 
+    console.log('Error Details:', errorDetails);
+
     errorDetails.forEach((detail, index) => {
         summarySheet.addRow([index + 1, detail.trim()]);
     });
@@ -44,8 +46,12 @@ export const downloadErrorReport = async (errors, headers, rows) => {
         dataSheet.addRow(row);
     });
 
-    const validErrors = errors.filter(error => error.row !== undefined && error.column !== undefined);
+    const validErrors = errors
+    .flatMap(error => error.errorList ? error.errorList : [error])
+    .filter(error => error.row !== undefined && error.column !== undefined);
 
+    console.log(validErrors);
+    
     validErrors.forEach(({ row, column }) => {
         const dataRow = dataSheet.getRow(row + 1);
         if (dataRow) {

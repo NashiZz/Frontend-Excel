@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
-
+import { v4 as uuidv4 } from 'uuid';
 
 const CreateTemplate = () => {
     const navigate = useNavigate();
@@ -30,21 +30,21 @@ const CreateTemplate = () => {
     const getUserToken = () => {
         let token = localStorage.getItem("userToken");
         if (!token) {
-            token = uuidv4(); 
+            token = uuidv4();
             localStorage.setItem("userToken", token);
         }
         return token;
-    };    
+    };
 
     const saveToLocalStorage = () => {
         if (!fileName.trim()) {
             alert("กรุณากรอกชื่อ Template");
             return;
         }
-    
-        const userToken = getUserToken(); 
+
+        const userToken = getUserToken();
         const newTemplate = {
-            userToken: userToken, 
+            userToken: userToken,
             templatename: fileName,
             headers: headers,
             maxRows: maxRows,
@@ -52,28 +52,28 @@ const CreateTemplate = () => {
                 calculations: calculationCondition
             }
         };
-    
+
         const existingTemplates = JSON.parse(localStorage.getItem("templates")) || [];
         existingTemplates.push(newTemplate);
         localStorage.setItem("templates", JSON.stringify(existingTemplates));
-    
+
         alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
         setIsDialogOpen(false);
-    }; 
+    };
 
     const addCondition = () => {
         if (!calculationType || !selectedColumns.addend || !selectedColumns.operand || !selectedColumns.result) {
             alert("กรุณากรอกค่าทั้งหมด");
             return;
         }
-    
+
         const newCalculation = {
             type: calculationType,
             addend: selectedColumns.addend,
             operand: selectedColumns.operand,
             result: selectedColumns.result
         };
-    
+
         const isDuplicate = calculationCondition.some(
             condition =>
                 condition.addend === newCalculation.addend &&
@@ -81,21 +81,21 @@ const CreateTemplate = () => {
                 condition.operand === newCalculation.operand &&
                 condition.result === newCalculation.result
         );
-    
+
         if (isDuplicate) {
             alert("เงื่อนไขนี้ถูกเพิ่มไปแล้ว");
             return;
         }
-    
+
         setCalculationCondition(prevCalculations => [...prevCalculations, newCalculation]);
-    
+
         setCalculationType('');
         setSelectedColumns({
             addend: '',
             operand: '',
             result: ''
         });
-    };    
+    };
 
     const handleHeaderChange = (index, field, value) => {
         const newHeaders = [...headers];
@@ -133,21 +133,21 @@ const CreateTemplate = () => {
 
     const handleColumnSelect = (columnName, columnType) => {
         if (columnType === 'addend' && (selectedColumns.operand === columnName || selectedColumns.result === columnName)) {
-            return; 
+            return;
         }
         if (columnType === 'operand' && (selectedColumns.addend === columnName || selectedColumns.result === columnName)) {
             return;
         }
         if (columnType === 'result' && (selectedColumns.addend === columnName || selectedColumns.operand === columnName)) {
-            return; 
+            return;
         }
-    
+
         setSelectedColumns(prevState => ({
             ...prevState,
             [columnType]: columnName
         }));
     };
-    
+
 
     const validateHeaders = () => {
         for (let i = 0; i < headers.length; i++) {
@@ -352,42 +352,65 @@ const CreateTemplate = () => {
                     </div>
                 </div>
             )}
-
             {isOptionDialogOpen && (
                 <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
-                        <h3 className="text-xl font-semibold mb-4">เลือกเงื่อนไขสำหรับ {selectedHeader?.name}</h3>
+                    <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-xl md:max-w-2xl overflow-y-auto max-h-[80vh]">
+                        <h3 className="text-xl font-semibold mb-4 text-center">
+                            เลือกเงื่อนไขสำหรับ {selectedHeader?.name}
+                        </h3>
+
                         <div className="space-y-4">
+                            {/* เลือกคอลัมน์ที่จะคำนวณ */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">เลือกคอลัมน์ที่จะคำนวณ</label>
-                                <div className="flex gap-4">
-                                    {headers.map((header) => (
-                                        <div key={header.name} className="flex flex-col">
-                                            <button
-                                                onClick={() => handleColumnSelect(header.name, 'addend')}
-                                                className={`px-4 py-2 border ${selectedColumns.addend === header.name ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
-                                            >
-                                                {header.name}
-                                            </button>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    เลือกคอลัมน์ที่จะคำนวณ
+                                </label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                    {headers
+                                        .filter((header) => header.condition === "balance") // ดึงเฉพาะ balance
+                                        .map((header) => (
+                                            <div key={header.name} className="flex flex-col gap-2 p-2 bg-gray-100 rounded-md shadow-md">
+                                                <h4 className="text-center font-medium text-gray-700">{header.name}</h4>
 
-                                            <button
-                                                onClick={() => handleColumnSelect(header.name, 'operand')}
-                                                className={`px-4 py-2 border ${selectedColumns.operand === header.name ? 'bg-yellow-600 text-white' : 'bg-white text-gray-700'}`}
-                                            >
-                                                {header.name}
-                                            </button>
+                                                <button
+                                                    onClick={() => handleColumnSelect(header.name, 'addend')}
+                                                    className={`px-4 py-2 rounded-md shadow-sm border 
+                                                        ${selectedColumns.addend === header.name
+                                                            ? 'bg-blue-600 text-white'
+                                                            : 'bg-white text-gray-700 hover:bg-blue-200'}
+                                                        transition`}
+                                                >
+                                                    ตัวตั้ง (Addend)
+                                                </button>
 
-                                            <button
-                                                onClick={() => handleColumnSelect(header.name, 'result')}
-                                                className={`px-4 py-2 border ${selectedColumns.result === header.name ? 'bg-green-600 text-white' : 'bg-white text-gray-700'}`}
-                                            >
-                                                {header.name} (คอลัมน์ผลลัพธ์)
-                                            </button>
-                                        </div>
-                                    ))}
+                                                <button
+                                                    onClick={() => handleColumnSelect(header.name, 'operand')}
+                                                    className={`px-4 py-2 rounded-md shadow-sm border 
+                                                        ${selectedColumns.operand === header.name
+                                                            ? 'bg-yellow-600 text-white'
+                                                            : 'bg-white text-gray-700 hover:bg-yellow-200'}
+                                                        transition`}
+                                                >
+                                                    ตัวกระทำ (Operand)
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleColumnSelect(header.name, 'result')}
+                                                    className={`px-4 py-2 rounded-md shadow-sm border 
+                                                        ${selectedColumns.result === header.name
+                                                            ? 'bg-green-600 text-white'
+                                                            : 'bg-white text-gray-700 hover:bg-green-200'}
+                                                        transition`}
+                                                >
+                                                    คอลัมน์ผลลัพธ์ (Result)
+                                                </button>
+                                            </div>
+                                        ))}
                                 </div>
+
                             </div>
 
+                            {/* เลือกประเภทการคำนวณ */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">เลือกประเภทการคำนวณ</label>
                                 <select
@@ -403,6 +426,7 @@ const CreateTemplate = () => {
                                 </select>
                             </div>
 
+                            {/* แสดงเงื่อนไขการคำนวณ */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">เงื่อนไขการคำนวณ</label>
                                 <input
@@ -432,6 +456,7 @@ const CreateTemplate = () => {
                                 )}
                             </div>
 
+                            {/* ปุ่มกด */}
                             <div className="flex justify-between mt-4">
                                 <button
                                     onClick={addCondition}

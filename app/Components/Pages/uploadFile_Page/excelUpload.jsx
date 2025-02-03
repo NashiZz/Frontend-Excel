@@ -169,8 +169,6 @@ const ExcelUpload = () => {
             calculation.result
         ]);
 
-        console.log(JSON.stringify(calculationDetails));
-
         const lowercaseHeaders = headers.map(header => header.toLowerCase());
         const lowercaseTemplateNames = templateNames.map(name => name.toLowerCase());
 
@@ -198,6 +196,8 @@ const ExcelUpload = () => {
         } finally {
             setIsLoading(false);
         }
+
+        console.log('Errors:', errors.errorDetails);
     };
 
     const handleDownloadErrorReport = () => {
