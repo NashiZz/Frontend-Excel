@@ -574,6 +574,9 @@ video {
 .mb-6{
   margin-bottom: 1.5rem;
 }
+.ml-2{
+  margin-left: 0.5rem;
+}
 .ml-4{
   margin-left: 1rem;
 }
@@ -598,18 +601,6 @@ video {
 .mt-6{
   margin-top: 1.5rem;
 }
-.ml-2{
-  margin-left: 0.5rem;
-}
-.mt-8{
-  margin-top: 2rem;
-}
-.mt-16{
-  margin-top: 4rem;
-}
-.mb-16{
-  margin-bottom: 4rem;
-}
 .block{
   display: block;
 }
@@ -622,6 +613,9 @@ video {
 .table{
   display: table;
 }
+.grid{
+  display: grid;
+}
 .hidden{
   display: none;
 }
@@ -633,6 +627,9 @@ video {
 }
 .max-h-64{
   max-height: 16rem;
+}
+.max-h-\[80vh\]{
+  max-height: 80vh;
 }
 .min-h-screen{
   min-height: 100vh;
@@ -655,6 +652,9 @@ video {
 .w-full{
   width: 100%;
 }
+.w-96{
+  width: 24rem;
+}
 .min-w-full{
   min-width: 100%;
 }
@@ -663,6 +663,9 @@ video {
 }
 .max-w-md{
   max-width: 28rem;
+}
+.max-w-xl{
+  max-width: 36rem;
 }
 .table-auto{
   table-layout: auto;
@@ -682,8 +685,14 @@ video {
 .cursor-pointer{
   cursor: pointer;
 }
+.cursor-not-allowed{
+  cursor: not-allowed;
+}
 .list-disc{
   list-style-type: disc;
+}
+.grid-cols-1{
+  grid-template-columns: repeat(1, minmax(0, 1fr));
 }
 .flex-row{
   flex-direction: row;
@@ -832,8 +841,15 @@ video {
   --tw-bg-opacity: 1;
   background-color: rgb(202 138 4 / var(--tw-bg-opacity, 1));
 }
+.bg-gray-400{
+  --tw-bg-opacity: 1;
+  background-color: rgb(156 163 175 / var(--tw-bg-opacity, 1));
+}
 .bg-opacity-50{
   --tw-bg-opacity: 0.5;
+}
+.bg-opacity-30{
+  --tw-bg-opacity: 0.3;
 }
 .p-1{
   padding: 0.25rem;
@@ -871,11 +887,11 @@ video {
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
 }
-.pt-28{
-  padding-top: 7rem;
-}
 .pl-5{
   padding-left: 1.25rem;
+}
+.pt-28{
+  padding-top: 7rem;
 }
 .text-left{
   text-align: left;
@@ -1014,6 +1030,11 @@ body {
   font-style: normal;
 }
 
+.hover\:bg-blue-200:hover{
+  --tw-bg-opacity: 1;
+  background-color: rgb(191 219 254 / var(--tw-bg-opacity, 1));
+}
+
 .hover\:bg-blue-600:hover{
   --tw-bg-opacity: 1;
   background-color: rgb(37 99 235 / var(--tw-bg-opacity, 1));
@@ -1039,6 +1060,11 @@ body {
   background-color: rgb(75 85 99 / var(--tw-bg-opacity, 1));
 }
 
+.hover\:bg-green-200:hover{
+  --tw-bg-opacity: 1;
+  background-color: rgb(187 247 208 / var(--tw-bg-opacity, 1));
+}
+
 .hover\:bg-green-600:hover{
   --tw-bg-opacity: 1;
   background-color: rgb(22 163 74 / var(--tw-bg-opacity, 1));
@@ -1047,6 +1073,21 @@ body {
 .hover\:bg-red-600:hover{
   --tw-bg-opacity: 1;
   background-color: rgb(220 38 38 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-yellow-200:hover{
+  --tw-bg-opacity: 1;
+  background-color: rgb(254 240 138 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-gray-200:hover{
+  --tw-bg-opacity: 1;
+  background-color: rgb(229 231 235 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-gray-400:hover{
+  --tw-bg-opacity: 1;
+  background-color: rgb(156 163 175 / var(--tw-bg-opacity, 1));
 }
 
 .hover\:text-blue-300:hover{
@@ -1080,6 +1121,13 @@ body {
   --tw-ring-color: rgb(191 219 254 / var(--tw-ring-opacity, 1));
 }
 
+@media (min-width: 640px){
+
+  .sm\:grid-cols-2{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (min-width: 768px){
 
   .md\:flex{
@@ -1089,10 +1137,26 @@ body {
   .md\:hidden{
     display: none;
   }
+
+  .md\:w-1\/2{
+    width: 50%;
+  }
+
+  .md\:max-w-2xl{
+    max-width: 42rem;
+  }
+
+  .md\:grid-cols-3{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .md\:flex-row{
+    flex-direction: row;
+  }
 }
-/*!***************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[2].use[1]!./node_modules/next/dist/build/webpack/loaders/next-font-loader/index.js??ruleSet[1].rules[13].oneOf[2].use[2]!./node_modules/next/font/google/target.css?{"path":"app\\layout.js","import":"Geist","arguments":[{"variable":"--font-geist-sans","subsets":["latin"]}],"variableName":"geistSans"} ***!
-  \***************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/*!**************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[2].use[1]!./node_modules/next/dist/build/webpack/loaders/next-font-loader/index.js??ruleSet[1].rules[13].oneOf[2].use[2]!./node_modules/next/font/google/target.css?{"path":"app/layout.js","import":"Geist","arguments":[{"variable":"--font-geist-sans","subsets":["latin"]}],"variableName":"geistSans"} ***!
+  \**************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
 /* latin-ext */
 @font-face {
   font-family: 'Geist';
@@ -1115,9 +1179,9 @@ body {
 }.__variable_4d318d {--font-geist-sans: 'Geist', 'Geist Fallback'
 }
 
-/*!********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[2].use[1]!./node_modules/next/dist/build/webpack/loaders/next-font-loader/index.js??ruleSet[1].rules[13].oneOf[2].use[2]!./node_modules/next/font/google/target.css?{"path":"app\\layout.js","import":"Geist_Mono","arguments":[{"variable":"--font-geist-mono","subsets":["latin"]}],"variableName":"geistMono"} ***!
-  \********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/*!*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[2].use[1]!./node_modules/next/dist/build/webpack/loaders/next-font-loader/index.js??ruleSet[1].rules[13].oneOf[2].use[2]!./node_modules/next/font/google/target.css?{"path":"app/layout.js","import":"Geist_Mono","arguments":[{"variable":"--font-geist-mono","subsets":["latin"]}],"variableName":"geistMono"} ***!
+  \*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
 /* latin-ext */
 @font-face {
   font-family: 'Geist Mono';
