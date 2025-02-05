@@ -1,9 +1,9 @@
 import { uploadExcelFile, uploadExcelFileWithHeader, uploadExcelFileWithTemplate, validateExcelFileWithHeaders } from '@/app/Service/dynamicService';
 import React, { useEffect, useState } from 'react';
-import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
 import { toast } from 'react-toastify';
+import { getTemplateData, loadTemplates } from './excelTemplate';
+import { downloadErrorReport } from './excelErrorReport';
 
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
@@ -20,26 +20,12 @@ const ExcelUpload = () => {
     const [condition, setCondition] = useState([]);
 
     useEffect(() => {
-        const storedTemplates = JSON.parse(localStorage.getItem('templates')) || [];
-
-        const templateNames = storedTemplates.map((template) => template.templatename || 'Unnamed Template');
-
-        setTemplates(templateNames);
+        loadTemplates(setTemplates);
     }, []);
 
     useEffect(() => {
-        setSuccessMessage("")
-        if (selectedTemplate) {
-            const storedTemplates = JSON.parse(localStorage.getItem('templates')) || [];
-            const selectedTemplateData = storedTemplates.find(template => template.templatename === selectedTemplate);
-
-            if (selectedTemplateData) {
-                setMaxRows(selectedTemplateData.maxRows);
-                setCondition(selectedTemplateData.headers.map(header => header.condition));
-            }
-        } else {
-            setMaxRows(null);
-        }
+        setSuccessMessage("");
+        getTemplateData(selectedTemplate, setMaxRows, setCondition);
     }, [selectedTemplate]);
 
     useEffect(() => {
@@ -112,28 +98,10 @@ const ExcelUpload = () => {
 
         try {
             await uploadExcelFile(file, setErrors, setSuccessMessage);
-            toast.success('🎉 อัปโหลดไฟล์สำเร็จ!', {
-                position: 'bottom-right',
-                autoClose: 3000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: 'colored',
-            });
+            toast.success('🎉 อัปโหลดไฟล์สำเร็จ!', { position: 'bottom-right', autoClose: 3000 });
         } catch (error) {
             console.error('Error uploading file:', error);
-            toast.error('❌ การอัปโหลดล้มเหลว!', {
-                position: 'bottom-right',
-                autoClose: 3000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: 'colored',
-            });
+            toast.error('❌ การอัปโหลดล้มเหลว!', { position: 'bottom-right', autoClose: 3000 });
         } finally {
             setIsLoading(false);
         }
@@ -192,7 +160,14 @@ const ExcelUpload = () => {
 
         const conditions = selectedTemplateData.headers.map(header => header.condition);
         const templateNames = selectedTemplateData.headers.map(header => header.name);
-        const calculater = selectedTemplateData.condition?.calculations || [];
+        const calculations = selectedTemplateData.condition?.calculations || [];
+
+        const calculationDetails = calculations.map(calculation => [
+            calculation.type,
+            calculation.addend,
+            calculation.operand,
+            calculation.result
+        ]);
 
         const lowercaseHeaders = headers.map(header => header.toLowerCase());
         const lowercaseTemplateNames = templateNames.map(name => name.toLowerCase());
@@ -213,90 +188,20 @@ const ExcelUpload = () => {
         setIsLoading(true);
 
         try {
-            await uploadExcelFileWithTemplate(file, conditions, calculater, setErrors, setSuccessMessage);
+            await uploadExcelFileWithTemplate(file, conditions, calculationDetails, setErrors, setSuccessMessage);
+            toast.success('🎉 อัปโหลดไฟล์สำเร็จ!', { position: 'bottom-right', autoClose: 3000 });
         } catch (error) {
             console.error('Error uploading file:', error);
-            toast.error('❌ การอัปโหลดล้มเหลว!', {
-                position: 'bottom-right',
-                autoClose: 3000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: 'colored',
-            });
+            toast.error('❌ การอัปโหลดล้มเหลว!', { position: 'bottom-right', autoClose: 3000 });
         } finally {
             setIsLoading(false);
         }
+
+        console.log('Errors:', errors.errorDetails);
     };
 
-    const downloadErrorReport = async () => {
-        const workbook = new ExcelJS.Workbook();
-        const summarySheet = workbook.addWorksheet('Summary');
-
-        summarySheet.columns = [
-            { width: 10 },
-            { width: 80 },
-        ];
-
-        const summaryHeader = summarySheet.addRow(['ลำดับ', 'ข้อผิดพลาด']);
-
-        summaryHeader.height = 25;
-
-        summaryHeader.eachCell((cell) => {
-            cell.font = { bold: true };
-            cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        });
-
-        const errorDetails = errors
-            .filter(error => error.errorDetails !== undefined)
-            .flatMap(error => error.errorDetails);
-
-        errorDetails.forEach((detail, index) => {
-            summarySheet.addRow([index + 1, detail.trim()]);
-        });
-
-        const dataSheet = workbook.addWorksheet('Data');
-
-        dataSheet.columns = headers.map(() => ({ width: 40 }));
-
-        const dataHeader = dataSheet.addRow(headers);
-
-        dataHeader.height = 25;
-
-        dataHeader.eachCell((cell) => {
-            cell.font = { bold: true };
-            cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        });
-
-        rows.forEach((row) => {
-            dataSheet.addRow(row);
-        });
-
-        const validErrors = errors.filter(error => error.row !== undefined && error.column !== undefined);
-
-        validErrors.forEach(({ row, column }) => {
-            const dataRow = dataSheet.getRow(row + 1);
-            if (dataRow) {
-                const cell = dataRow.getCell(column + 1);
-                cell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FFFF0000' },
-                };
-                cell.border = {
-                    top: { style: 'thin', color: { argb: 'FF000000' } },
-                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
-                    left: { style: 'thin', color: { argb: 'FF000000' } },
-                    right: { style: 'thin', color: { argb: 'FF000000' } },
-                };
-            }
-        });
-
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: 'application/octet-stream' });
-        saveAs(blob, 'error_report.xlsx');
+    const handleDownloadErrorReport = () => {
+        downloadErrorReport(errors, headers, rows);
     };
 
     return (
@@ -451,7 +356,7 @@ const ExcelUpload = () => {
 
                             <div className="flex justify-between mt-6">
                                 <button
-                                    onClick={downloadErrorReport}
+                                    onClick={handleDownloadErrorReport}
                                     className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md"
                                 >
                                     ดาวน์โหลดรายงานข้อผิดพลาด

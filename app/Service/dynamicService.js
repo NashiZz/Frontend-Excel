@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = " http://localhost:8000/api";
+const API_BASE_URL = " https://backend-excel-cagd.onrender.com/api";
 
 export const uploadExcelFile = async (file, setErrors, setSuccessMessage) => {
     const formData = new FormData();
@@ -59,11 +59,11 @@ export const uploadExcelFileWithHeader = async (file, header, setErrors, setSucc
     }
 };
 
-export const uploadExcelFileWithTemplate = async (file, condition, calculater, setErrors, setSuccessMessage) => {
+export const uploadExcelFileWithTemplate = async (file, condition, calculaterDetail, setErrors, setSuccessMessage) => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("condition", JSON.stringify(condition));
-    formData.append("calculater", JSON.stringify(calculater)); 
+    formData.append("calculater", JSON.stringify(calculaterDetail)); 
 
     try {
         const response = await axios.post(`${API_BASE_URL}/excel/template`, formData, {

@@ -62,6 +62,7 @@ const imageConfigDefault = {
     contentDispositionType: 'attachment',
     localPatterns: undefined,
     remotePatterns: [],
+    qualities: undefined,
     unoptimized: false
 };
 
