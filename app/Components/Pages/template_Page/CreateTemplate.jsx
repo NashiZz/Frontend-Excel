@@ -66,7 +66,7 @@ const CreateTemplate = () => {
         console.log("Sending template:", newTemplate);
 
         try {
-            const response = await fetch("http://localhost:8000/api/save/templates", {
+            const response = await fetch("https://backend-excel-cagd.onrender.com/api/save/templates", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

@@ -1,41 +1,33 @@
-const saveToLocalStorage = async () => {
-    if (!fileName.trim()) {
-        alert("กรุณากรอกชื่อ Template");
-        return;
-    }
+import axios from 'axios';
 
-    const userToken = getUserToken();
-    const newTemplate = {
-        userToken: userToken,
-        templatename: fileName,
-        headers: headers,
-        maxRows: maxRows,
-        condition: {
-            calculations: calculationCondition
-        }
-    };
+const API_URL = "https://backend-excel-cagd.onrender.com/api/save/templates";
 
-    const existingTemplates = JSON.parse(localStorage.getItem("templates")) || [];
-    existingTemplates.push(newTemplate);
-    localStorage.setItem("templates", JSON.stringify(existingTemplates));
+export const fetchTemplates = async (userToken) => {
+  try {
+    const response = await axios.get(`${API_URL}/${userToken}`);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error fetching templates:", error);
+    return null;
+  }
+};
 
-    try {
-        const response = await fetch("http://localhost:8000/api/save/templates", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(newTemplate),
-        });
-        const data = await response.json();
-        if (response.ok) {
-            alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
-            setIsDialogOpen(false);
-        } else {
-            alert(`Error: ${data.message}`);
-        }
-    } catch (error) {
-        console.error("Error saving template:", error);
-        alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
-    }
+export const deleteTemplate = async (userToken, templateName) => {
+  try {
+    const response = await axios.delete(`${API_URL}/${userToken}/${templateName}`);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error deleting template:", error);
+    return null;
+  }
+};
+
+export const updateTemplate = async (userToken, templateName, templateRequest) => {
+  try {
+    const response = await axios.put(`${API_URL}/${userToken}/${templateName}`, templateRequest);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error updating template:", error);
+    return null;
+  }
 };

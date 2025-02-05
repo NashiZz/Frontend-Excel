@@ -2,25 +2,53 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFileAlt, faEdit, faTrashAlt } from '@fortawesome/free-solid-svg-icons';
+import { deleteTemplate, fetchTemplates, updateTemplate } from "@/app/Service/templateService";
 
 const TemplateManagement = () => {
   const [templates, setTemplates] = useState([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState(null);
   const [editedTemplate, setEditedTemplate] = useState({ templatename: "", headers: [], maxRows: "" });
+  const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedTemplates = JSON.parse(localStorage.getItem("templates")) || [];
-    setTemplates(storedTemplates);
-  }, []);
+    const getTemplates = async () => {
+      if (!userToken) {
+        console.error("User token not found");
+        setLoading(false);
+        return;
+      }
 
-  const handleDeleteTemplate = (templateName) => {
-    const updatedTemplates = templates.filter(
-      (template) => template.templatename !== templateName
-    );
-    setTemplates(updatedTemplates);
-    localStorage.setItem("templates", JSON.stringify(updatedTemplates));
+      setLoading(true); // เริ่มโหลดข้อมูล
+      const data = await fetchTemplates(userToken);
+      if (data) {
+        setTemplates(data.templates || []);
+      }
+      setLoading(false); // โหลดเสร็จแล้ว
+    };
+
+    getTemplates();
+  }, [userToken]);
+
+  // useEffect(() => {
+  //   const storedTemplates = JSON.parse(localStorage.getItem("templates")) || [];
+  //   setTemplates(storedTemplates);
+  // }, []);
+
+  const handleDeleteTemplate = async (templateName) => {
+    try {
+      const response = await deleteTemplate(userToken, templateName); 
+      if (response) {
+        const updatedTemplates = templates.filter(
+          (template) => template.templatename !== templateName
+        );
+        setTemplates(updatedTemplates);
+      }
+    } catch (error) {
+      console.error("Error deleting template:", error);
+    }
   };
 
   const handleAddTemplate = () => {
@@ -33,13 +61,19 @@ const TemplateManagement = () => {
     setIsEditDialogOpen(true);
   };
 
-  const handleSaveEdit = () => {
-    const updatedTemplates = templates.map((template) =>
-      template.templatename === currentTemplate.templatename ? editedTemplate : template
-    );
-    setTemplates(updatedTemplates);
-    localStorage.setItem("templates", JSON.stringify(updatedTemplates));
-    setIsEditDialogOpen(false);
+  const handleSaveEdit = async () => {
+    try {
+      const updatedTemplateData = await updateTemplate(userToken, currentTemplate.templatename, editedTemplate); 
+      if (updatedTemplateData) {
+        const updatedTemplates = templates.map((template) =>
+          template.templatename === currentTemplate.templatename ? updatedTemplateData : template
+        );
+        setTemplates(updatedTemplates);
+      }
+      setIsEditDialogOpen(false);
+    } catch (error) {
+      console.error("Error saving template edit:", error);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -70,7 +104,9 @@ const TemplateManagement = () => {
           เพิ่มเทมเพลต
         </button>
       </div>
-      {templates.length === 0 ? (
+      {loading ? (
+        <p className="text-gray-500">กำลังโหลดข้อมูล...</p>
+      ) : templates.length === 0 ? (
         <p className="text-gray-500">ไม่มีเทมเพลตที่บันทึก</p>
       ) : (
         <div className="overflow-x-auto">

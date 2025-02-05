@@ -66,7 +66,7 @@ function resolveAndValidateImage(item, metadataBase, isStaticMetadataRouteFile) 
         // metadata conventions (eg `opengraph-image`), as otherwise it's currently very noisy
         // for common cases. Eventually we should remove this warning all together in favor of
         // devtools.
-        const shouldWarn = !isUsingVercelSystemEnvironmentVariables && (process.env.NODE_ENV === 'production' || !isStaticMetadataRouteFile);
+        const shouldWarn = !isUsingVercelSystemEnvironmentVariables && !metadataBase && (process.env.NODE_ENV === 'production' || !isStaticMetadataRouteFile);
         if (shouldWarn) {
             warnOnce(`metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "${fallbackMetadataBase.origin}". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase`);
         }
