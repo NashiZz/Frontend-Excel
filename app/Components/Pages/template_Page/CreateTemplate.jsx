@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
 import { v4 as uuidv4 } from 'uuid';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPlusCircle, faFileAlt } from '@fortawesome/free-solid-svg-icons';
+import { saveTemplate } from '@/app/Service/templateService';
 
 const CreateTemplate = () => {
     const navigate = useNavigate();
@@ -39,7 +42,7 @@ const CreateTemplate = () => {
         return token;
     };
 
-    const saveToLocalStorage = () => {
+    const saveToLocalStorage = async () => {
         if (!fileName.trim()) {
             alert("กรุณากรอกชื่อ Template");
             return;
@@ -52,7 +55,7 @@ const CreateTemplate = () => {
             headers: headers,
             maxRows: maxRows,
             condition: {
-                calculations: calculationCondition
+                calculations: calculationCondition || []
             }
         };
 
@@ -60,8 +63,27 @@ const CreateTemplate = () => {
         existingTemplates.push(newTemplate);
         localStorage.setItem("templates", JSON.stringify(existingTemplates));
 
-        alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
-        setIsDialogOpen(false);
+        console.log("Sending template:", newTemplate);
+
+        try {
+            const response = await fetch("http://localhost:8000/api/save/templates", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(newTemplate),
+            });
+            const data = await response.json();
+            if (response.ok) {
+                alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
+                setIsDialogOpen(false);
+            } else {
+                alert(`Error: ${data.message}`);
+            }
+        } catch (error) {
+            console.error("Error saving template:", error);
+            alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+        }
     };
 
     const handleSelectOption = (option) => {
@@ -225,16 +247,23 @@ const CreateTemplate = () => {
             </div>
             <div className="flex flex-col md:flex-row gap-6">
                 <div className="w-full md:w-1/2">
+                    <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                        <FontAwesomeIcon icon={faPlusCircle} className="text-blue-500 w-6 h-6" />
+                        เพิ่มหัวข้อคอลัมน์
+                    </h2>
                     <form onSubmit={handleSubmit}>
                         {headers.map((header, index) => (
                             <div key={index} className="mb-4">
                                 {expandedHeader !== index && header.name && header.condition ? (
                                     <button
                                         type="button"
-                                        className="w-full text-left px-4 py-2 bg-gray-100 border rounded-md shadow-md hover:bg-gray-200 transition"
+                                        className="w-full text-left px-4 py-2 bg-white border rounded-md shadow-md hover:bg-gray-100 transition flex items-center gap-3"
                                         onClick={() => setExpandedHeader(index)}
                                     >
-                                        {header.name} (กดเพื่อแก้ไข)
+                                        <span className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm font-semibold">
+                                            {index + 1}
+                                        </span>
+                                        <span>{header.name}</span>
                                     </button>
                                 ) : (
                                     <div className="bg-white p-4 border rounded-md shadow-md">
@@ -346,37 +375,33 @@ const CreateTemplate = () => {
                 </div>
 
                 <div className="w-full md:w-1/2">
-                    <h2 className="text-xl font-semibold mb-6">ตัวอย่างเทมเพลต</h2>
-                    <div className="border border-gray-300 p-4 rounded-md">
-                        <table className="min-w-full">
-                            <thead>
-                                <tr>
-                                    {headers.map((header, index) => (
-                                        <th key={index} className="border px-4 py-2">{header.name}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    {headers.map((header, index) => (
-                                        <td key={index} className="border px-4 py-2">
-                                            {header.condition}
-                                        </td>
-                                    ))}
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    {calculationCondition && calculationCondition.length > 0 && (
-                        <div className="mt-4">
-                            <h4 className="text-lg font-semibold">เงื่อนไขที่เพิ่มเข้ามา:</h4>
-                            <ul className="list-disc pl-5">
-                                {calculationCondition.map((condition, index) => (
-                                    <li key={index}>{`${condition.addend} ${condition.type} ${condition.operand} = ${condition.result}`}</li>
-                                ))}
-                            </ul>
+                    <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                        <FontAwesomeIcon icon={faFileAlt} className="text-green-500 w-6 h-6" />
+                        ข้อมูลเทมเพลต
+                    </h2>
+                    <div className="border border-gray-300 p-4 rounded-md overflow-x-auto">
+                        <h4 className="text-lg font-semibold">หัวข้อคอลัมน์:</h4>
+                        <div className="w-full flex flex-wrap gap-2">
+                            {headers.map((header, index) => (
+                                <div key={index} className="w-full md:w-auto flex flex-col border rounded-md mt-1 p-2 bg-gray-100">
+                                    <span className="font-semibold">{header.name}</span>
+                                    <span className="text-gray-700">{header.condition}</span>
+                                </div>
+                            ))}
                         </div>
-                    )}
+                        {calculationCondition && calculationCondition.length > 0 && (
+                            <div className="mt-4">
+                                <h4 className="text-lg font-semibold">เงื่อนไขการคำนวณ:</h4>
+                                <ul className="list-disc pl-5 text-sm md:text-base">
+                                    {calculationCondition.map((condition, index) => (
+                                        <li key={index} className="mt-1">
+                                            {`${condition.addend} ${condition.type} ${condition.operand} = ${condition.result}`}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
