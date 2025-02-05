@@ -1,4 +1,4 @@
-import { uploadExcelFile, uploadExcelFileWithHeader, uploadExcelFileWithTemplate, validateExcelFileWithHeaders } from '@/app/Service/dynamicService';
+import { uploadExcelFile, uploadExcelFileWithHeader, uploadExcelFileWithTemplate} from '@/app/Service/dynamicService';
 import React, { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
