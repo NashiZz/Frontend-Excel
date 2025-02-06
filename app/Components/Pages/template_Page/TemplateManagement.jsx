@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFileAlt, faEdit, faTrashAlt } from '@fortawesome/free-solid-svg-icons';
-import { deleteTemplate, fetchTemplates, updateTemplate } from "@/app/Service/templateService";
+import { faFileAlt, faEdit, faTrashAlt, faSpinner, faCopy, faEyeSlash, faEye } from '@fortawesome/free-solid-svg-icons';
+import { v4 as uuidv4 } from "uuid";
+import { deleteTemplate, fetchTemplates, updateTemplate, updateUserTokenInBackend } from "@/app/Service/templateService";
 
 const TemplateManagement = () => {
   const [templates, setTemplates] = useState([]);
@@ -11,7 +12,21 @@ const TemplateManagement = () => {
   const [editedTemplate, setEditedTemplate] = useState({ templatename: "", headers: [], maxRows: "" });
   const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
+  const [copied, setCopied] = useState(false);
+  const [showToken, setShowToken] = useState(false);
+  const [newUserToken, setNewUserToken] = useState("");
+  const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (!userToken) {
+      const newToken = uuidv4();
+      localStorage.setItem("userToken", newToken);
+      setUserToken(newToken);
+      updateUserTokenInBackend(newToken);
+    }
+  }, [userToken]); 
 
   useEffect(() => {
     const getTemplates = async () => {
@@ -21,16 +36,42 @@ const TemplateManagement = () => {
         return;
       }
 
-      setLoading(true); // เริ่มโหลดข้อมูล
-      const data = await fetchTemplates(userToken);
-      if (data) {
-        setTemplates(data.templates || []);
+      setLoading(true);
+      try {
+        const data = await fetchTemplates(userToken);  
+        if (data && data.templates) {
+          setTemplates(data.templates); 
+        } else {
+          console.error("No templates found");
+        }
+      } catch (error) {
+        console.error("Error fetching templates:", error);
       }
-      setLoading(false); // โหลดเสร็จแล้ว
+      setLoading(false);
     };
 
-    getTemplates();
-  }, [userToken]);
+    if (userToken) {
+      getTemplates();
+    }
+  }, []); 
+
+  const handleCopyToken = () => {
+    navigator.clipboard.writeText(userToken);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleLoadOldTemplate = () => {
+    setIsLoadDialogOpen(true);
+  };
+
+  const handleConfirmLoadToken = () => {
+    if (newUserToken.trim()) {
+      localStorage.setItem("userToken", newUserToken);
+      setUserToken(newUserToken);
+      setIsLoadDialogOpen(false);
+    }
+  };
 
   // useEffect(() => {
   //   const storedTemplates = JSON.parse(localStorage.getItem("templates")) || [];
@@ -39,7 +80,8 @@ const TemplateManagement = () => {
 
   const handleDeleteTemplate = async (templateName) => {
     try {
-      const response = await deleteTemplate(userToken, templateName); 
+      setDeleting(true);
+      const response = await deleteTemplate(userToken, templateName);
       if (response) {
         const updatedTemplates = templates.filter(
           (template) => template.templatename !== templateName
@@ -48,6 +90,8 @@ const TemplateManagement = () => {
       }
     } catch (error) {
       console.error("Error deleting template:", error);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -63,7 +107,7 @@ const TemplateManagement = () => {
 
   const handleSaveEdit = async () => {
     try {
-      const updatedTemplateData = await updateTemplate(userToken, currentTemplate.templatename, editedTemplate); 
+      const updatedTemplateData = await updateTemplate(userToken, currentTemplate.templatename, editedTemplate);
       if (updatedTemplateData) {
         const updatedTemplates = templates.map((template) =>
           template.templatename === currentTemplate.templatename ? updatedTemplateData : template
@@ -97,15 +141,55 @@ const TemplateManagement = () => {
           <FontAwesomeIcon icon={faFileAlt} className="mr-2" />
           จัดการเทมเพลต
         </h1>
-        <button
-          onClick={handleAddTemplate}
-          className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
-        >
-          เพิ่มเทมเพลต
-        </button>
+        <div className="bg-gray-100 p-4 rounded-md flex justify-between items-center">
+          <p className="text-gray-700 font-semibold">
+            Token ของคุณ:{" "}
+            <span className="text-blue-600 break-all pr-3">
+              {showToken ? userToken : "••••••••••••"}
+            </span>
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowToken(!showToken)}
+              className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500 flex items-center"
+            >
+              <FontAwesomeIcon icon={showToken ? faEyeSlash : faEye} className="mr-2" />
+              {showToken ? "ซ่อน" : "แสดง"}
+            </button>
+            <button
+              onClick={handleCopyToken}
+              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 flex items-center"
+            >
+              <FontAwesomeIcon icon={faCopy} className="mr-2" />
+              {copied ? "คัดลอกแล้ว!" : "คัดลอก"}
+            </button>
+          </div>
+        </div>
+        <div className="flex-row gap-20">
+          <button
+            onClick={handleLoadOldTemplate}
+            className="bg-blue-500 text-white px-4 py-2 mr-3 rounded-md hover:bg-blue-600"
+          >
+            โหลด Template เดิม
+          </button>
+          <button
+            onClick={handleAddTemplate}
+            className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
+          >
+            เพิ่มเทมเพลต
+          </button>
+        </div>
       </div>
       {loading ? (
-        <p className="text-gray-500">กำลังโหลดข้อมูล...</p>
+        <div className="flex flex-col mt-20 items-center">
+          <p className="text-gray-500 font-semibold">กำลังโหลดเทมเพลต...</p>
+          <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
+        </div>
+      ) : deleting ? (
+        <div className="flex flex-col mt-20 items-center">
+          <p className="text-red-800 text-lg font-semibold">กำลังลบ...</p>
+          <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
+        </div>
       ) : templates.length === 0 ? (
         <p className="text-gray-500">ไม่มีเทมเพลตที่บันทึก</p>
       ) : (
@@ -151,9 +235,19 @@ const TemplateManagement = () => {
                     <button
                       onClick={() => handleDeleteTemplate(template.templatename)}
                       className="bg-red-500 text-white px-2 py-1 sm:px-4 sm:py-2 rounded-md hover:bg-red-600 flex items-center"
+                      disabled={deleting}
                     >
-                      <FontAwesomeIcon icon={faTrashAlt} className="mr-1 sm:mr-2" />
-                      ลบ
+                      {deleting ? (
+                        <>
+                          <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
+                          กำลังลบ...
+                        </>
+                      ) : (
+                        <>
+                          <FontAwesomeIcon icon={faTrashAlt} className="mr-1 sm:mr-2" />
+                          ลบ
+                        </>
+                      )}
                     </button>
                   </td>
                 </tr>
@@ -162,81 +256,35 @@ const TemplateManagement = () => {
           </table>
         </div>
       )}
-      {isEditDialogOpen && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center p-4">
-          <div className="bg-white p-6 rounded-md shadow-md w-full max-w-2xl">
-            <h2 className="text-xl font-semibold mb-4">แก้ไขเทมเพลต</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">ชื่อเทมเพลต</label>
-                <input
-                  type="text"
-                  value={editedTemplate.templatename}
-                  onChange={(e) => setEditedTemplate({ ...editedTemplate, templatename: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">จำนวน Row</label>
-                <input
-                  type="number"
-                  value={editedTemplate.maxRows}
-                  onChange={(e) => setEditedTemplate({ ...editedTemplate, maxRows: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">เงื่อนไขการตรวจสอบ</label>
-              {editedTemplate.headers.map((header, index) => (
-                <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block mb-1 text-sm font-medium text-gray-700">ชื่อคอลัมน์</label>
-                    <input
-                      type="text"
-                      className="w-full border border-gray-300 rounded-md px-4 py-2"
-                      value={header.name}
-                      onChange={(e) => handleHeaderChange(index, 'name', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block mb-1 text-sm font-medium text-gray-700">เงื่อนไข</label>
-                    <select
-                      className="w-full border border-gray-300 rounded-md px-4 py-2"
-                      value={header.condition}
-                      onChange={(e) => handleHeaderChange(index, 'condition', e.target.value)}
-                    >
-                      <option value="">เลือกเงื่อนไข</option>
-                      <option value="name">ตรวจสอบชื่อ</option>
-                      <option value="email">ตรวจสอบอีเมล</option>
-                      <option value="phone">ตรวจสอบเบอร์โทร</option>
-                      <option value="address">ตรวจสอบที่อยู่</option>
-                      <option value="citizenid">ตรวจสอบบัตรประชาชน</option>
-                      <option value="age">ตรวจสอบอายุ</option>
-                      <option value="gender">ตรวจสอบเพศ</option>
-                      <option value="balance">ตรวจสอบเกี่ยวกับการเงิน</option>
-                    </select>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col md:flex-row justify-end gap-2">
+      {isLoadDialogOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-md shadow-md">
+            <h2 className="text-lg font-semibold mb-4">กรอก Token ของคุณ</h2>
+            <input
+              type="text"
+              value={newUserToken}
+              onChange={(e) => setNewUserToken(e.target.value)}
+              className="border px-3 py-2 w-full rounded-md"
+              placeholder="กรอก User Token เดิม"
+            />
+            <div className="flex justify-end gap-2 mt-4">
               <button
-                onClick={handleSaveEdit}
-                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 w-full md:w-auto"
-              >
-                บันทึก
-              </button>
-              <button
-                onClick={handleCancelEdit}
-                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 w-full md:w-auto"
+                onClick={() => setIsLoadDialogOpen(false)}
+                className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500"
               >
                 ยกเลิก
+              </button>
+              <button
+                onClick={handleConfirmLoadToken}
+                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+              >
+                ยืนยัน
               </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };

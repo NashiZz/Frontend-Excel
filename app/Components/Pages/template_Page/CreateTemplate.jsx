@@ -4,7 +4,6 @@ import * as XLSX from 'xlsx';
 import { v4 as uuidv4 } from 'uuid';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlusCircle, faFileAlt } from '@fortawesome/free-solid-svg-icons';
-import { saveTemplate } from '@/app/Service/templateService';
 
 const CreateTemplate = () => {
     const navigate = useNavigate();
@@ -21,6 +20,7 @@ const CreateTemplate = () => {
     const [selectedHeader, setSelectedHeader] = useState(null);
     const [calculationCondition, setCalculationCondition] = useState([]);
     const [selectedColumns, setSelectedColumns] = useState({});
+    const [isSaving, setIsSaving] = useState(false);
 
     const conditions = [
         { value: "name", label: "ตรวจสอบชื่อ" },
@@ -35,10 +35,6 @@ const CreateTemplate = () => {
 
     const getUserToken = () => {
         let token = localStorage.getItem("userToken");
-        if (!token) {
-            token = uuidv4();
-            localStorage.setItem("userToken", token);
-        }
         return token;
     };
 
@@ -64,9 +60,10 @@ const CreateTemplate = () => {
         localStorage.setItem("templates", JSON.stringify(existingTemplates));
 
         console.log("Sending template:", newTemplate);
+        setIsSaving(true);
 
         try {
-            const response = await fetch("https://backend-excel-cagd.onrender.com/api/save/templates", {
+            const response = await fetch("http://localhost:8080/api/save/templates", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -77,12 +74,15 @@ const CreateTemplate = () => {
             if (response.ok) {
                 alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
                 setIsDialogOpen(false);
+                navigate("/template");
             } else {
                 alert(`Error: ${data.message}`);
             }
         } catch (error) {
             console.error("Error saving template:", error);
             alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -614,42 +614,53 @@ const CreateTemplate = () => {
             {isDialogOpen && (
                 <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
                     <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
-                        <h3 className="text-xl font-semibold mb-4">ตั้งชื่อ Template</h3>
-                        <input
-                            type="text"
-                            className="w-full border border-gray-300 rounded-md p-2 mb-4"
-                            value={fileName}
-                            onChange={handleFileNameChange}
-                            placeholder="กรุณากรอกชื่อ Template"
-                        />
-                        <label htmlFor="maxRows" className="block text-sm font-medium text-gray-700 mb-2">จำนวนแถวสูงสุด:</label>
-                        <input
-                            type="number"
-                            id="maxRows"
-                            className="w-full border border-gray-300 rounded-md p-2 mt-2"
-                            value={maxRows}
-                            onChange={(e) => setMaxRows(Number(e.target.value))}
-                            min="1"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                            กำหนดจำนวนแถวสูงสุดที่เทมเพลตสามารถรองรับได้
-                        </p>
-                        <div className="flex justify-end gap-4">
-                            <button
-                                type="button"
-                                onClick={() => setIsDialogOpen(false)}
-                                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md"
-                            >
-                                ยกเลิก
-                            </button>
-                            <button
-                                type="button"
-                                onClick={saveToLocalStorage}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md"
-                            >
-                                บันทึก
-                            </button>
-                        </div>
+                        {isSaving ? (
+                            <div className="flex flex-col items-center">
+                                <p className="text-lg font-semibold">กำลังบันทึก...</p>
+                                <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
+                            </div>
+                        ) : (
+                            <>
+                                <h3 className="text-xl font-semibold mb-4">ตั้งชื่อ Template</h3>
+                                <input
+                                    type="text"
+                                    className="w-full border border-gray-300 rounded-md p-2 mb-4"
+                                    value={fileName}
+                                    onChange={handleFileNameChange}
+                                    placeholder="กรุณากรอกชื่อ Template"
+                                />
+                                <label htmlFor="maxRows" className="block text-sm font-medium text-gray-700 mb-2">
+                                    จำนวนแถวสูงสุด:
+                                </label>
+                                <input
+                                    type="number"
+                                    id="maxRows"
+                                    className="w-full border border-gray-300 rounded-md p-2 mt-2"
+                                    value={maxRows}
+                                    onChange={(e) => setMaxRows(Number(e.target.value))}
+                                    min="1"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    กำหนดจำนวนแถวสูงสุดที่เทมเพลตสามารถรองรับได้
+                                </p>
+                                <div className="flex justify-end gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsDialogOpen(false)}
+                                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md"
+                                    >
+                                        ยกเลิก
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={saveToLocalStorage}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md"
+                                    >
+                                        บันทึก
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
