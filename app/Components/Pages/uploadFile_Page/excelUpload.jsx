@@ -1,14 +1,15 @@
-import { uploadExcelFile, uploadExcelFileWithHeader, uploadExcelFileWithTemplate} from '@/app/Service/dynamicService';
+import { uploadExcelFile, uploadExcelFileWithHeader, uploadExcelFileWithTemplate } from '@/app/Service/dynamicService';
 import React, { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
-import { getTemplateData, loadTemplates } from './excelTemplate';
 import { downloadErrorReport } from './excelErrorReport';
+import { fetchTemplates, fetchTemplatesName } from '@/app/Service/templateService';
 
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
     const [headers, setHeaders] = useState([]);
     const [rows, setRows] = useState([]);
+    const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
     const [errors, setErrors] = useState([]);
     const [successMessage, setSuccessMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -20,13 +21,34 @@ const ExcelUpload = () => {
     const [condition, setCondition] = useState([]);
 
     useEffect(() => {
-        loadTemplates(setTemplates);
-    }, []);
+        const fetchTemplatesData = async () => {
+            if (!userToken) {
+                return;
+            }
+
+            const data = await fetchTemplates(userToken);
+            if (data && data.templates) {
+                if (data.templates.length === 0) {
+                    console.log("ไม่พบเทมเพลต, กรุณาสร้างเทมเพลตก่อน");
+                    setTemplates([]);
+                } else {
+                    setTemplates(data.templates);
+                }
+            }
+        };
+
+        fetchTemplatesData();
+    }, [userToken]);
 
     useEffect(() => {
-        setSuccessMessage("");
-        getTemplateData(selectedTemplate, setMaxRows, setCondition);
-    }, [selectedTemplate]);
+        if (selectedTemplate) {
+            const templateData = templates.find(template => template.templatename === selectedTemplate);
+            if (templateData) {
+                setMaxRows(templateData.maxRows);
+                setCondition(templateData.headers.map(header => header.condition));
+            }
+        }
+    }, [selectedTemplate, templates]);
 
     useEffect(() => {
         if (selectedTemplate) {
@@ -150,8 +172,7 @@ const ExcelUpload = () => {
             return;
         }
 
-        const storedTemplates = JSON.parse(localStorage.getItem('templates')) || [];
-        const selectedTemplateData = storedTemplates.find(template => template.templatename === selectedTemplate);
+        const selectedTemplateData = templates.find(template => template.templatename === selectedTemplate);
 
         if (!selectedTemplateData) {
             setErrors(['ไม่พบข้อมูลเทมเพลต']);
@@ -168,6 +189,11 @@ const ExcelUpload = () => {
             calculation.operand,
             calculation.result
         ]);
+
+        console.log("✅ Conditions:", conditions);
+        console.log("✅ Template Names:", templateNames);
+        console.log("✅ Calculations:", calculations);
+        console.log("✅ Calculation Details:", calculationDetails);
 
         const lowercaseHeaders = headers.map(header => header.toLowerCase());
         const lowercaseTemplateNames = templateNames.map(name => name.toLowerCase());
@@ -190,14 +216,13 @@ const ExcelUpload = () => {
         try {
             await uploadExcelFileWithTemplate(file, conditions, calculationDetails, setErrors, setSuccessMessage);
             toast.success('🎉 อัปโหลดไฟล์สำเร็จ!', { position: 'bottom-right', autoClose: 3000 });
+            console.log('Errors:', errors.errorDetails);
         } catch (error) {
             console.error('Error uploading file:', error);
             toast.error('❌ การอัปโหลดล้มเหลว!', { position: 'bottom-right', autoClose: 3000 });
         } finally {
             setIsLoading(false);
         }
-
-        console.log('Errors:', errors.errorDetails);
     };
 
     const handleDownloadErrorReport = () => {
@@ -222,8 +247,8 @@ const ExcelUpload = () => {
                         >
                             <option value="">-- เลือกเทมเพลต --</option>
                             {templates.map((template, index) => (
-                                <option key={index} value={template}>
-                                    {template}
+                                <option key={index} value={template.templatename}>
+                                    {template.templatename}
                                 </option>
                             ))}
                         </select>

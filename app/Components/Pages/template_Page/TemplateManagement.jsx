@@ -18,17 +18,14 @@ const TemplateManagement = () => {
   const [showToken, setShowToken] = useState(false);
   const [newUserToken, setNewUserToken] = useState("");
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+  const [isLoadToken, setIsLoadToken] = useState(false);
 
   useEffect(() => {
     if (!userToken) {
-      const newToken = uuidv4();
-      localStorage.setItem("userToken", newToken);
-      setUserToken(newToken);
-      updateUserTokenInBackend(newToken);
+      setLoading(false);
+      return;
     }
-  }, [userToken]); 
 
-  useEffect(() => {
     const getTemplates = async () => {
       if (!userToken) {
         console.error("User token not found");
@@ -38,11 +35,9 @@ const TemplateManagement = () => {
 
       setLoading(true);
       try {
-        const data = await fetchTemplates(userToken);  
+        const data = await fetchTemplates(userToken);
         if (data && data.templates) {
-          setTemplates(data.templates); 
-        } else {
-          console.error("No templates found");
+          setTemplates(data.templates);
         }
       } catch (error) {
         console.error("Error fetching templates:", error);
@@ -50,10 +45,38 @@ const TemplateManagement = () => {
       setLoading(false);
     };
 
-    if (userToken) {
-      getTemplates();
+    getTemplates();
+  }, [userToken]);
+
+  const handleCreateUserToken = async () => {
+    setIsLoadToken(true);
+
+    const newToken = uuidv4();
+
+    try {
+      const response = await updateUserTokenInBackend(newToken);
+
+      if (response && response.data && response.data.message === "User token added successfully") {
+        console.log("User token updated in backend successfully");
+
+        localStorage.setItem("userToken", newToken);
+        setUserToken(newToken);
+
+        const data = await fetchTemplates(newToken);
+        if (data && data.templates) {
+          setTemplates(data.templates);
+        } else {
+          console.error("No templates found");
+        }
+      } else {
+        console.error("Failed to update user token: ", response?.data?.message || "Unknown error");
+      }
+    } catch (error) {
+      console.error("Error updating user token in backend:", error);
     }
-  }, []); 
+
+    setIsLoadToken(false);
+  };
 
   const handleCopyToken = () => {
     navigator.clipboard.writeText(userToken);
@@ -72,11 +95,6 @@ const TemplateManagement = () => {
       setIsLoadDialogOpen(false);
     }
   };
-
-  // useEffect(() => {
-  //   const storedTemplates = JSON.parse(localStorage.getItem("templates")) || [];
-  //   setTemplates(storedTemplates);
-  // }, []);
 
   const handleDeleteTemplate = async (templateName) => {
     try {
@@ -145,25 +163,36 @@ const TemplateManagement = () => {
           <p className="text-gray-700 font-semibold">
             Token ของคุณ:{" "}
             <span className="text-blue-600 break-all pr-3">
-              {showToken ? userToken : "••••••••••••"}
+              {userToken ? (
+                showToken ? userToken : "••••••••••••"
+              ) : (
+                <button
+                  onClick={handleCreateUserToken}
+                  className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
+                >
+                  สร้าง User Token
+                </button>
+              )}
             </span>
           </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowToken(!showToken)}
-              className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500 flex items-center"
-            >
-              <FontAwesomeIcon icon={showToken ? faEyeSlash : faEye} className="mr-2" />
-              {showToken ? "ซ่อน" : "แสดง"}
-            </button>
-            <button
-              onClick={handleCopyToken}
-              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 flex items-center"
-            >
-              <FontAwesomeIcon icon={faCopy} className="mr-2" />
-              {copied ? "คัดลอกแล้ว!" : "คัดลอก"}
-            </button>
-          </div>
+          {userToken && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowToken(!showToken)}
+                className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500 flex items-center"
+              >
+                <FontAwesomeIcon icon={showToken ? faEyeSlash : faEye} className="mr-2" />
+                {showToken ? "ซ่อน" : "แสดง"}
+              </button>
+              <button
+                onClick={handleCopyToken}
+                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 flex items-center"
+              >
+                <FontAwesomeIcon icon={faCopy} className="mr-2" />
+                {copied ? "คัดลอกแล้ว!" : "คัดลอก"}
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex-row gap-20">
           <button
@@ -173,13 +202,16 @@ const TemplateManagement = () => {
             โหลด Template เดิม
           </button>
           <button
-            onClick={handleAddTemplate}
-            className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
+            className={`bg-green-500 text-white px-4 py-2 rounded-md ${!userToken ? "opacity-50 cursor-not-allowed" : "hover:bg-green-600"
+              }`}
+            onClick={userToken ? handleAddTemplate : undefined}
+            disabled={!userToken}
           >
             เพิ่มเทมเพลต
           </button>
         </div>
       </div>
+
       {loading ? (
         <div className="flex flex-col mt-20 items-center">
           <p className="text-gray-500 font-semibold">กำลังโหลดเทมเพลต...</p>
@@ -223,31 +255,18 @@ const TemplateManagement = () => {
                     ))}
                   </td>
                   <td className="border border-gray-300 px-2 sm:px-4 py-2">{template.maxRows}</td>
-                  <td className="border border-gray-300 px-2 sm:px-4 py-2 flex justify-center gap-2">
+                  <td className="border border-gray-300 px-2 sm:px-4 py-2">
                     <button
                       onClick={() => handleEditTemplate(template)}
-                      className="bg-blue-500 text-white px-2 py-1 sm:px-4 sm:py-2 rounded-md hover:bg-blue-600 flex items-center"
+                      className="bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600"
                     >
-                      <FontAwesomeIcon icon={faEdit} className="mr-1 sm:mr-2" />
                       แก้ไข
                     </button>
-
                     <button
                       onClick={() => handleDeleteTemplate(template.templatename)}
-                      className="bg-red-500 text-white px-2 py-1 sm:px-4 sm:py-2 rounded-md hover:bg-red-600 flex items-center"
-                      disabled={deleting}
+                      className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 ml-2"
                     >
-                      {deleting ? (
-                        <>
-                          <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
-                          กำลังลบ...
-                        </>
-                      ) : (
-                        <>
-                          <FontAwesomeIcon icon={faTrashAlt} className="mr-1 sm:mr-2" />
-                          ลบ
-                        </>
-                      )}
+                      ลบ
                     </button>
                   </td>
                 </tr>
@@ -256,37 +275,17 @@ const TemplateManagement = () => {
           </table>
         </div>
       )}
-      {isLoadDialogOpen && (
+      {isLoadToken && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded-md shadow-md">
-            <h2 className="text-lg font-semibold mb-4">กรอก Token ของคุณ</h2>
-            <input
-              type="text"
-              value={newUserToken}
-              onChange={(e) => setNewUserToken(e.target.value)}
-              className="border px-3 py-2 w-full rounded-md"
-              placeholder="กรอก User Token เดิม"
-            />
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                onClick={() => setIsLoadDialogOpen(false)}
-                className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500"
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={handleConfirmLoadToken}
-                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-              >
-                ยืนยัน
-              </button>
-            </div>
+          <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center">
+            <p className="mb-4">กำลังสร้าง User Token...</p>
+            <div className="loader"></div>
           </div>
         </div>
       )}
-
     </div>
   );
 };
 
 export default TemplateManagement;
+

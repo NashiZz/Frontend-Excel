@@ -6,13 +6,31 @@ export const updateUserTokenInBackend = async (userToken) => {
   try {
     const response = await axios.post(`${API_URL}/update-token`, {
       userToken: userToken,
-      templates: []  
+      templates: [] 
     });
-    console.log("User token updated successfully:", response.data);
+
+    if (response && response.data) {
+      console.log("User token updated successfully:", response.data);
+      return response;
+    }
   } catch (error) {
     console.error("❌ Error updating user token in backend:", error);
+    throw error; 
   }
 };
+
+export const fetchTemplatesName = async (userToken) => {
+  try {
+      const response = await fetch(`${API_URL}/${userToken}`);
+      if (!response.ok) {
+          throw new Error('Failed to fetch templates');
+      }
+      return response.data;
+  } catch (error) {
+      console.error('Error fetching templates:', error);
+  }
+};
+
 
 export const fetchTemplates = async (userToken) => {
   try {
