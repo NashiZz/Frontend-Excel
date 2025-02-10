@@ -275,6 +275,34 @@ const TemplateManagement = () => {
           </table>
         </div>
       )}
+      {isLoadDialogOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-md shadow-md">
+            <h2 className="text-lg font-semibold mb-4">กรอก Token ของคุณ</h2>
+            <input
+              type="text"
+              value={newUserToken}
+              onChange={(e) => setNewUserToken(e.target.value)}
+              className="border px-3 py-2 w-full rounded-md"
+              placeholder="กรอก User Token เดิม"
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setIsLoadDialogOpen(false)}
+                className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleConfirmLoadToken}
+                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+              >
+                ยืนยัน
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {isLoadToken && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center">

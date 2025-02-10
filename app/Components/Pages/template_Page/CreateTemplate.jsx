@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
-import { v4 as uuidv4 } from 'uuid';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlusCircle, faFileAlt } from '@fortawesome/free-solid-svg-icons';
 
@@ -19,8 +18,13 @@ const CreateTemplate = () => {
     const [calculationType, setCalculationType] = useState('');
     const [selectedHeader, setSelectedHeader] = useState(null);
     const [calculationCondition, setCalculationCondition] = useState([]);
+    const [relationCondition, setRelationCondition] = useState([]);
     const [selectedColumns, setSelectedColumns] = useState({});
     const [isSaving, setIsSaving] = useState(false);
+    const [selectedFirstColumn, setSelectedFirstColumn] = useState('');
+    const [selectedSecondColumn, setSelectedSecondColumn] = useState('');
+    const [selectedCondition, setSelectedCondition] = useState('');
+    const [selectedCondition2, setSelectedCondition2] = useState('');
 
     const conditions = [
         { value: "name", label: "ตรวจสอบชื่อ" },
@@ -51,7 +55,8 @@ const CreateTemplate = () => {
             headers: headers,
             maxRows: maxRows,
             condition: {
-                calculations: calculationCondition || []
+                calculations: calculationCondition || [],
+                relations: relationCondition || []
             }
         };
 
@@ -131,6 +136,53 @@ const CreateTemplate = () => {
         });
     };
 
+    const handleFirstColumnChange = (e) => {
+        setSelectedFirstColumn(e.target.value);
+        if (e.target.value === selectedSecondColumn) {
+            setSelectedSecondColumn("");
+        }
+    };
+
+    const handleSecondColumnChange = (e) => {
+        setSelectedSecondColumn(e.target.value);
+        if (e.target.value === selectedFirstColumn) {
+            setSelectedFirstColumn("");
+        }
+    };
+
+    const handleConditionChange = (e) => {
+        setSelectedCondition(e.target.value);
+    };
+
+    const handleConditionChange2 = (e) => {
+        setSelectedCondition2(e.target.value);
+    };
+
+    const addColumnCondition = () => {
+        if (!selectedFirstColumn || !selectedSecondColumn || !selectedCondition) {
+            alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+            return;
+        }
+
+        if (selectedFirstColumn === selectedSecondColumn) {
+            alert("ไม่สามารถเลือกคอลัมน์เดียวกันได้");
+            return;
+        }
+
+        const newCondition = {
+            column1: selectedFirstColumn,
+            condition: selectedCondition,
+            column2: selectedSecondColumn,
+            condition2: selectedCondition2
+        };
+
+        setRelationCondition(prevConditions => [...prevConditions, newCondition]);
+
+        setSelectedFirstColumn('');
+        setSelectedSecondColumn('');
+        setSelectedCondition('');
+    };
+
     const addHeader = () => {
         setHeaders([...headers, { name: "", condition: "" }]);
         setExpandedHeader(headers.length);
@@ -166,6 +218,11 @@ const CreateTemplate = () => {
     const removeCondition = (index) => {
         const updatedConditions = calculationCondition.filter((_, i) => i !== index);
         setCalculationCondition(updatedConditions);
+    };
+
+    const removeRelation = (index) => {
+        const updatedConditions = relationCondition.filter((_, i) => i !== index);
+        setRelationCondition(updatedConditions);
     };
 
     const handleColumnSelect = (columnName, columnType) => {
@@ -401,6 +458,18 @@ const CreateTemplate = () => {
                                 </ul>
                             </div>
                         )}
+                        {relationCondition && relationCondition.length > 0 && (
+                            <div className="mt-4">
+                                <h4 className="text-lg font-semibold">เงื่อนไขความสัมพันธ์ของคอลัมน์:</h4>
+                                <ul className="list-disc pl-5 text-sm md:text-base">
+                                    {relationCondition.map((relation, index) => (
+                                        <li key={index} className="mt-1">
+                                            {`${relation.column1} ${relation.condition} ${relation.column2} ${relation.condition2}`}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -599,14 +668,97 @@ const CreateTemplate = () => {
                     <div className="bg-white p-6 rounded-md shadow-lg w-96">
                         <h2 className="text-lg font-bold mb-4">เพิ่มเงื่อนไขคอลัมน์สัมพันธ์กัน</h2>
 
-                        <p>⚠️ ตั้งค่าเงื่อนไขที่ต้องการ เช่น หาก Column A มีค่า → Column B ต้องมีค่า</p>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">เลือกคอลัมน์ที่ 1</label>
+                            <select
+                                value={selectedFirstColumn}
+                                onChange={handleFirstColumnChange}
+                                className="w-full border border-gray-300 rounded-md p-2"
+                            >
+                                <option value="">-- เลือกคอลัมน์ --</option>
+                                {headers
+                                    .filter((header) => header.name !== selectedSecondColumn)
+                                    .map((header) => (
+                                        <option key={header.name} value={header.name}>
+                                            {header.name}
+                                        </option>
+                                    ))}
+                            </select>
+                        </div>
 
-                        <button
-                            className="w-full mt-4 py-2 px-4 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-                            onClick={() => setIsColumnConditionDialogOpen(false)}
-                        >
-                            ปิด
-                        </button>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">เงื่อนไข</label>
+                            <input
+                                type="text"
+                                value={selectedCondition}
+                                onChange={handleConditionChange}
+                                className="w-full border border-gray-300 rounded-md p-2"
+                                placeholder="กรอกเงื่อนไข"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">เลือกคอลัมน์ที่ 2</label>
+                            <select
+                                value={selectedSecondColumn}
+                                onChange={handleSecondColumnChange}
+                                className="w-full border border-gray-300 rounded-md p-2"
+                            >
+                                <option value="">-- เลือกคอลัมน์ --</option>
+                                {headers
+                                    .filter((header) => header.name !== selectedFirstColumn)
+                                    .map((header) => (
+                                        <option key={header.name} value={header.name}>
+                                            {header.name}
+                                        </option>
+                                    ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">เงื่อนไข</label>
+                            <input
+                                type="text"
+                                value={selectedCondition2}
+                                onChange={handleConditionChange2}
+                                className="w-full border border-gray-300 rounded-md p-2"
+                                placeholder="กรอกเงื่อนไข"
+                            />
+                        </div>
+
+                        {relationCondition.length > 0 && (
+                            <div className="mt-4 mb-6">
+                                <h4 className="text-lg font-semibold">เงื่อนไขที่เพิ่มเข้ามา:</h4>
+                                <ul className="list-disc pl-5">
+                                    {relationCondition.map((relation, index) => (
+                                        <li key={index} className="flex justify-between items-center">
+                                            {`${relation.column1} ${relation.condition} ${relation.column2} ${relation.condition2}`}
+                                            <button
+                                                onClick={() => removeCondition(index)}
+                                                className="ml-2 text-red-600 hover:text-red-800"
+                                            >
+                                                ลบ
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        <div className="flex justify-between mt-4">
+                            <button
+                                onClick={addColumnCondition}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            >
+                                เพิ่มเงื่อนไข
+                            </button>
+                            <button
+                                onClick={() => setIsColumnConditionDialogOpen(false)}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                            >
+                                ปิด
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

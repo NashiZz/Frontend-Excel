@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import { downloadErrorReport } from './excelErrorReport';
-import { fetchTemplates, fetchTemplatesName } from '@/app/Service/templateService';
+import { fetchTemplates } from '@/app/Service/templateService';
 
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
@@ -182,6 +182,7 @@ const ExcelUpload = () => {
         const conditions = selectedTemplateData.headers.map(header => header.condition);
         const templateNames = selectedTemplateData.headers.map(header => header.name);
         const calculations = selectedTemplateData.condition?.calculations || [];
+        const relations = selectedTemplateData.condition?.relations || [];
 
         const calculationDetails = calculations.map(calculation => [
             calculation.type,
@@ -190,10 +191,18 @@ const ExcelUpload = () => {
             calculation.result
         ]);
 
+        const relationDetails = relations.map(relation => [
+            relation.column1,
+            relation.condition,
+            relation.column2,
+            relation.condition2
+        ]);
+
         console.log("✅ Conditions:", conditions);
         console.log("✅ Template Names:", templateNames);
         console.log("✅ Calculations:", calculations);
         console.log("✅ Calculation Details:", calculationDetails);
+        console.log("Relations:", relationDetails);
 
         const lowercaseHeaders = headers.map(header => header.toLowerCase());
         const lowercaseTemplateNames = templateNames.map(name => name.toLowerCase());
@@ -214,7 +223,7 @@ const ExcelUpload = () => {
         setIsLoading(true);
 
         try {
-            await uploadExcelFileWithTemplate(file, conditions, calculationDetails, setErrors, setSuccessMessage);
+            await uploadExcelFileWithTemplate(file, conditions, calculationDetails, relationDetails, setErrors, setSuccessMessage);
             toast.success('🎉 อัปโหลดไฟล์สำเร็จ!', { position: 'bottom-right', autoClose: 3000 });
             console.log('Errors:', errors.errorDetails);
         } catch (error) {
