@@ -37,6 +37,11 @@ const CreateTemplate = () => {
         { value: "balance", label: "ตรวจสอบเกี่ยวกับการเงิน" },
     ];
 
+    const conditionOptions = [
+        { label: 'ต้องมีข้อมูล', value: 'required' },
+        { label: 'ต้องมีค่า XXXX', value: 'equals' },
+    ];
+
     const getUserToken = () => {
         let token = localStorage.getItem("userToken");
         return token;
@@ -50,7 +55,6 @@ const CreateTemplate = () => {
 
         const userToken = getUserToken();
         const newTemplate = {
-            userToken: userToken,
             templatename: fileName,
             headers: headers,
             maxRows: maxRows,
@@ -243,6 +247,7 @@ const CreateTemplate = () => {
     const validateHeaders = () => {
         for (let i = 0; i < headers.length; i++) {
             const header = headers[i];
+
             if (!header.name.trim()) {
                 alert(`กรุณากรอกชื่อ Header ในบรรทัดที่ ${i + 1}`);
                 return false;
@@ -267,6 +272,7 @@ const CreateTemplate = () => {
             setIsDialogOpen(true);
         }
     };
+
 
     const generateExcel = (headers, fileName) => {
         const headerNames = headers.map(header => header.name);
@@ -417,6 +423,7 @@ const CreateTemplate = () => {
                                 type="button"
                                 onClick={() => setIsDialogOpen(true)}
                                 className="mr-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                                disabled={headers.some(header => !header.name.trim() || !header.condition)}
                             >
                                 บันทึก Template
                             </button>
@@ -688,13 +695,18 @@ const CreateTemplate = () => {
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">เงื่อนไข</label>
-                            <input
-                                type="text"
+                            <select
                                 value={selectedCondition}
                                 onChange={handleConditionChange}
                                 className="w-full border border-gray-300 rounded-md p-2"
-                                placeholder="กรอกเงื่อนไข"
-                            />
+                            >
+                                <option value="">-- เลือกเงื่อนไข --</option>
+                                {conditionOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div>
@@ -717,13 +729,18 @@ const CreateTemplate = () => {
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">เงื่อนไข</label>
-                            <input
-                                type="text"
+                            <select
                                 value={selectedCondition2}
                                 onChange={handleConditionChange2}
                                 className="w-full border border-gray-300 rounded-md p-2"
-                                placeholder="กรอกเงื่อนไข"
-                            />
+                            >
+                                <option value="">-- เลือกเงื่อนไข --</option>
+                                {conditionOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         {relationCondition.length > 0 && (
@@ -734,7 +751,7 @@ const CreateTemplate = () => {
                                         <li key={index} className="flex justify-between items-center">
                                             {`${relation.column1} ${relation.condition} ${relation.column2} ${relation.condition2}`}
                                             <button
-                                                onClick={() => removeCondition(index)}
+                                                onClick={() => removeRelation(index)}
                                                 className="ml-2 text-red-600 hover:text-red-800"
                                             >
                                                 ลบ

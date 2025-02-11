@@ -225,7 +225,6 @@ const ExcelUpload = () => {
         try {
             await uploadExcelFileWithTemplate(file, conditions, calculationDetails, relationDetails, setErrors, setSuccessMessage);
             toast.success('🎉 อัปโหลดไฟล์สำเร็จ!', { position: 'bottom-right', autoClose: 3000 });
-            console.log('Errors:', errors.errorDetails);
         } catch (error) {
             console.error('Error uploading file:', error);
             toast.error('❌ การอัปโหลดล้มเหลว!', { position: 'bottom-right', autoClose: 3000 });

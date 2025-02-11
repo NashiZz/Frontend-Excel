@@ -120,8 +120,8 @@ const TemplateManagement = () => {
   const handleEditTemplate = (template) => {
     setCurrentTemplate(template);
     setEditedTemplate({ ...template });
-    setIsEditDialogOpen(true);
-  };
+    navigate("/createtemplate", { state: { template: template } });
+  };  
 
   const handleSaveEdit = async () => {
     try {
