@@ -195,7 +195,6 @@ const ExcelUpload = () => {
             relation.column1,
             relation.condition,
             relation.column2,
-            relation.condition2
         ]);
 
         console.log("✅ Conditions:", conditions);

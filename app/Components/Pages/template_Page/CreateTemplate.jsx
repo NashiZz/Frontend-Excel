@@ -24,7 +24,6 @@ const CreateTemplate = () => {
     const [selectedFirstColumn, setSelectedFirstColumn] = useState('');
     const [selectedSecondColumn, setSelectedSecondColumn] = useState('');
     const [selectedCondition, setSelectedCondition] = useState('');
-    const [selectedCondition2, setSelectedCondition2] = useState('');
 
     const conditions = [
         { value: "name", label: "ตรวจสอบชื่อ" },
@@ -38,8 +37,8 @@ const CreateTemplate = () => {
     ];
 
     const conditionOptions = [
-        { label: 'ต้องมีข้อมูล', value: 'required' },
-        { label: 'ต้องมีค่า XXXX', value: 'equals' },
+        { label: 'ต้องมีข้อมูล', value: 'notEmpty' },
+        { label: 'ต้องมีค่าตาม Column ที่1', value: 'exists' },
     ];
 
     const getUserToken = () => {
@@ -55,6 +54,7 @@ const CreateTemplate = () => {
 
         const userToken = getUserToken();
         const newTemplate = {
+            userToken: userToken,
             templatename: fileName,
             headers: headers,
             maxRows: maxRows,
@@ -158,10 +158,6 @@ const CreateTemplate = () => {
         setSelectedCondition(e.target.value);
     };
 
-    const handleConditionChange2 = (e) => {
-        setSelectedCondition2(e.target.value);
-    };
-
     const addColumnCondition = () => {
         if (!selectedFirstColumn || !selectedSecondColumn || !selectedCondition) {
             alert("กรุณากรอกข้อมูลให้ครบถ้วน");
@@ -177,7 +173,6 @@ const CreateTemplate = () => {
             column1: selectedFirstColumn,
             condition: selectedCondition,
             column2: selectedSecondColumn,
-            condition2: selectedCondition2
         };
 
         setRelationCondition(prevConditions => [...prevConditions, newCondition]);
@@ -471,7 +466,7 @@ const CreateTemplate = () => {
                                 <ul className="list-disc pl-5 text-sm md:text-base">
                                     {relationCondition.map((relation, index) => (
                                         <li key={index} className="mt-1">
-                                            {`${relation.column1} ${relation.condition} ${relation.column2} ${relation.condition2}`}
+                                            {`${relation.column1} ${relation.condition} ${relation.column2}`}
                                         </li>
                                     ))}
                                 </ul>
@@ -694,22 +689,6 @@ const CreateTemplate = () => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">เงื่อนไข</label>
-                            <select
-                                value={selectedCondition}
-                                onChange={handleConditionChange}
-                                className="w-full border border-gray-300 rounded-md p-2"
-                            >
-                                <option value="">-- เลือกเงื่อนไข --</option>
-                                {conditionOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">เลือกคอลัมน์ที่ 2</label>
                             <select
                                 value={selectedSecondColumn}
@@ -727,11 +706,12 @@ const CreateTemplate = () => {
                             </select>
                         </div>
 
+                        
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">เงื่อนไข</label>
                             <select
-                                value={selectedCondition2}
-                                onChange={handleConditionChange2}
+                                value={selectedCondition}
+                                onChange={handleConditionChange}
                                 className="w-full border border-gray-300 rounded-md p-2"
                             >
                                 <option value="">-- เลือกเงื่อนไข --</option>
@@ -749,7 +729,7 @@ const CreateTemplate = () => {
                                 <ul className="list-disc pl-5">
                                     {relationCondition.map((relation, index) => (
                                         <li key={index} className="flex justify-between items-center">
-                                            {`${relation.column1} ${relation.condition} ${relation.column2} ${relation.condition2}`}
+                                            {`${relation.column1} ${relation.condition} ${relation.column2}`}
                                             <button
                                                 onClick={() => removeRelation(index)}
                                                 className="ml-2 text-red-600 hover:text-red-800"
