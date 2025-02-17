@@ -7,6 +7,8 @@ import { deleteTemplate, fetchTemplates, updateTemplate, updateUserTokenInBacken
 
 const TemplateManagement = () => {
   const [templates, setTemplates] = useState([]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState(null);
   const [currentTemplate, setCurrentTemplate] = useState(null);
   const [editedTemplate, setEditedTemplate] = useState({ templatename: "", headers: [], maxRows: "" });
   const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
@@ -18,6 +20,14 @@ const TemplateManagement = () => {
   const [newUserToken, setNewUserToken] = useState("");
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [isLoadToken, setIsLoadToken] = useState(false);
+  const [isExpanded, setIsExpanded] = useState({});
+
+  const toggleExpand = (templateName) => {
+    setIsExpanded((prev) => ({
+      ...prev,
+      [templateName]: !prev[templateName],
+    }));
+  };
 
   useEffect(() => {
     if (!userToken) {
@@ -95,6 +105,15 @@ const TemplateManagement = () => {
     }
   };
 
+  const openDeleteDialog = (template) => {
+    setTemplateToDelete(template);
+    setShowDeleteDialog(true);
+  };
+
+  const closeDeleteDialog = () => {
+    setShowDeleteDialog(false);
+  };
+
   const handleDeleteTemplate = async (templateName) => {
     try {
       setDeleting(true);
@@ -109,6 +128,7 @@ const TemplateManagement = () => {
       console.error("Error deleting template:", error);
     } finally {
       setDeleting(false);
+      setShowDeleteDialog(false);
     }
   };
 
@@ -127,12 +147,12 @@ const TemplateManagement = () => {
   return (
     <div className="container mx-auto p-6 pt-28">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">
+        <h1 className="text-3xl font-semibold text-gray-800">
           <FontAwesomeIcon icon={faFileAlt} className="mr-2" />
-          จัดการเทมเพลต
+          การจัดการเทมเพลต
         </h1>
-        <div className="bg-gray-100 p-4 rounded-md flex justify-between items-center">
-          <p className="text-gray-700 font-semibold">
+        <div className="bg-white shadow-md p-4 rounded-lg flex items-center justify-between w-2/3">
+          <p className="text-gray-600 font-medium">
             Token ของคุณ:{" "}
             <span className="text-blue-600 break-all pr-3">
               {userToken ? (
@@ -148,7 +168,7 @@ const TemplateManagement = () => {
             </span>
           </p>
           {userToken && (
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={() => setShowToken(!showToken)}
                 className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500 flex items-center"
@@ -166,22 +186,23 @@ const TemplateManagement = () => {
             </div>
           )}
         </div>
-        <div className="flex-row gap-20">
-          <button
-            onClick={handleLoadOldTemplate}
-            className="bg-blue-500 text-white px-4 py-2 mr-3 rounded-md hover:bg-blue-600"
-          >
-            โหลด Template เดิม
-          </button>
-          <button
-            className={`bg-green-500 text-white px-4 py-2 rounded-md ${!userToken ? "opacity-50 cursor-not-allowed" : "hover:bg-green-600"
-              }`}
-            onClick={userToken ? handleAddTemplate : undefined}
-            disabled={!userToken}
-          >
-            เพิ่มเทมเพลต
-          </button>
-        </div>
+      </div>
+
+      <div className="flex gap-4 mb-6">
+        <button
+          onClick={handleLoadOldTemplate}
+          className="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition"
+        >
+          โหลด Template เดิม
+        </button>
+        <button
+          className={`bg-green-500 text-white px-5 py-2 rounded-lg ${!userToken ? "opacity-50 cursor-not-allowed" : "hover:bg-green-600"
+            }`}
+          onClick={userToken ? handleAddTemplate : undefined}
+          disabled={!userToken}
+        >
+          เพิ่มเทมเพลต
+        </button>
       </div>
 
       {loading ? (
@@ -189,64 +210,139 @@ const TemplateManagement = () => {
           <p className="text-gray-500 font-semibold">กำลังโหลดเทมเพลต...</p>
           <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
         </div>
-      ) : deleting ? (
-        <div className="flex flex-col mt-20 items-center">
-          <p className="text-red-800 text-lg font-semibold">กำลังลบ...</p>
-          <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
-        </div>
       ) : templates.length === 0 ? (
         <p className="text-gray-500">ไม่มีเทมเพลตที่บันทึก</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto bg-white shadow-md rounded-lg p-4">
           <table className="table-auto w-full border-collapse border border-gray-200">
             <thead>
               <tr className="bg-gray-100">
                 <th className="border border-gray-300 px-2 sm:px-4 py-2">ชื่อเทมเพลต</th>
                 <th className="border border-gray-300 px-2 sm:px-4 py-2">ชื่อ Header</th>
-                <th className="border border-gray-300 px-2 sm:px-4 py-2">เงื่อนไข</th>
                 <th className="border border-gray-300 px-2 sm:px-4 py-2">จำนวน Row</th>
                 <th className="border border-gray-300 px-2 sm:px-4 py-2">จัดการ</th>
+                <th className="border border-gray-300 px-2 sm:px-4 py-2">เพิ่มเติม</th>
               </tr>
             </thead>
             <tbody>
               {templates.map((template, index) => (
-                <tr key={index} className="text-center">
-                  <td className="border border-gray-300 px-2 sm:px-4 py-2">{template.templatename}</td>
-                  <td className="border border-gray-300 px-2 sm:px-4 py-2">
-                    {template.headers.map((header, idx) => (
-                      <span key={idx} className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs mr-1">
-                        {header.name}
-                      </span>
-                    ))}
-                  </td>
-                  <td className="border border-gray-300 px-2 sm:px-4 py-2">
-                    {template.headers.map((header, idx) => (
-                      <span key={idx} className="inline-block bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs mr-1">
-                        {header.condition}
-                      </span>
-                    ))}
-                  </td>
-                  <td className="border border-gray-300 px-2 sm:px-4 py-2">{template.maxRows}</td>
-                  <td className="border border-gray-300 px-2 sm:px-4 py-2">
-                    <button
-                      onClick={() => handleEditTemplate(template)}
-                      className="bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600"
-                    >
-                      แก้ไข
-                    </button>
-                    <button
-                      onClick={() => handleDeleteTemplate(template.templatename)}
-                      className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 ml-2"
-                    >
-                      ลบ
-                    </button>
-                  </td>
-                </tr>
+                <React.Fragment key={index}>
+                  <tr className="text-center">
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2">{template.templatename}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2">
+                      {template.headers.map((header, idx) => (
+                        <span key={idx} className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs mr-1">
+                          {header.name}
+                        </span>
+                      ))}
+                    </td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2">{template.maxRows}</td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2">
+                      <button
+                        onClick={() => handleEditTemplate(template)}
+                        className="bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600"
+                      >
+                        <FontAwesomeIcon icon={faEdit} />
+                      </button>
+                      <button
+                        onClick={() => openDeleteDialog(template)}
+                        className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 ml-2"
+                      >
+                        <FontAwesomeIcon icon={faTrashAlt} />
+                      </button>
+                    </td>
+                    <td className="border border-gray-300 px-2 sm:px-4 py-2">
+                      <button
+                        onClick={() => toggleExpand(template.templatename)}
+                        className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600"
+                      >
+                        {isExpanded[template.templatename] ? "ซ่อนรายละเอียด" : "ดูรายละเอียด"}
+                      </button>
+                    </td>
+                  </tr>
+
+                  {isExpanded[template.templatename] && (
+                    <tr>
+                      <td colSpan="5" className="border border-gray-300 px-8 py-4 bg-gray-50">
+                        <div className="flex flex-row justify-between">
+
+                          <div>
+                            <h3 className="text-gray-700 font-semibold">เงื่อนไขในการเช็ค</h3>
+                            <ul className="list-disc pl-5 text-left text-gray-600">
+                              {template.headers.map((header, idx) => (
+                                <li key={idx} className="mt-1">
+                                  <strong>หัวข้อ {header.name}:</strong> ตรวจสอบโดยใช้เงื่อนไข {header.condition || "ไม่มีเงื่อนไข"}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          <div>
+                            <h3 className="text-gray-700 font-semibold">เงื่อนไขในการคำนวณ</h3>
+                            <ul className="list-disc pl-5 text-left text-gray-600">
+                              {template.condition?.calculations?.map((calc, idx) => (
+                                <li key={idx} className="mt-1">
+                                  {calc.result} = {calc.addend} {calc.type} {calc.operand}
+                                </li>
+                              )) || <li>ไม่มีเงื่อนไขการคำนวณ</li>}
+                            </ul>
+                          </div>
+
+                          <div>
+                            <h3 className="text-gray-700 font-semibold">เงื่อนไขความสัมพันธ์ของคอลัมน์</h3>
+                            <ul className="list-disc pl-5 text-left text-gray-600">
+                              {template.condition?.relations?.map((rel, idx) => (
+                                <li key={idx} className="mt-1">
+                                  <strong>{rel.column1}</strong> ต้อง <strong>{rel.condition}</strong> กับ <strong>{rel.column2}</strong>
+                                </li>
+                              )) || <li>ไม่มีเงื่อนไขความสัมพันธ์</li>}
+                            </ul>
+                          </div>
+
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
+          {showDeleteDialog && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
+              {deleting ? (
+                <div className="bg-white rounded-lg p-6 w-80">
+                  <div className="flex flex-col px-6 items-center">
+                    <p className="text-red-800 text-lg font-semibold">กำลังลบ...</p>
+                    <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-white rounded-lg p-6 w-80">
+                    < h2 className="text-xl font-semibold mb-4">คุณแน่ใจหรือไม่ที่จะลบเทมเพลตนี้?</h2>
+                    <p>ชื่อเทมเพลต: {templateToDelete?.templatename}</p>
+                    <div className="mt-4 flex justify-end gap-4">
+                      <button
+                        onClick={closeDeleteDialog}
+                        className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+                      >
+                        ยกเลิก
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTemplate(templateToDelete.templatename)}
+                        className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                      >
+                        ยืนยันการลบ
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
+
       {isLoadDialogOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-md shadow-md">
@@ -274,16 +370,19 @@ const TemplateManagement = () => {
             </div>
           </div>
         </div>
-      )}
-      {isLoadToken && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center">
-            <p className="mb-4">กำลังสร้าง User Token...</p>
-            <div className="loader"></div>
+      )
+      }
+      {
+        isLoadToken && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center">
+              <p className="mb-4">กำลังสร้าง User Token...</p>
+              <div className="loader"></div>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 
