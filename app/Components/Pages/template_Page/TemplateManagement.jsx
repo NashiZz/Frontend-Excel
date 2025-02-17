@@ -7,7 +7,6 @@ import { deleteTemplate, fetchTemplates, updateTemplate, updateUserTokenInBacken
 
 const TemplateManagement = () => {
   const [templates, setTemplates] = useState([]);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState(null);
   const [editedTemplate, setEditedTemplate] = useState({ templatename: "", headers: [], maxRows: "" });
   const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
@@ -120,36 +119,9 @@ const TemplateManagement = () => {
   const handleEditTemplate = (template) => {
     setCurrentTemplate(template);
     setEditedTemplate({ ...template });
-    navigate("/createtemplate", { state: { template: template } });
-  };  
+    console.log(template);
 
-  const handleSaveEdit = async () => {
-    try {
-      const updatedTemplateData = await updateTemplate(userToken, currentTemplate.templatename, editedTemplate);
-      if (updatedTemplateData) {
-        const updatedTemplates = templates.map((template) =>
-          template.templatename === currentTemplate.templatename ? updatedTemplateData : template
-        );
-        setTemplates(updatedTemplates);
-      }
-      setIsEditDialogOpen(false);
-    } catch (error) {
-      console.error("Error saving template edit:", error);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditDialogOpen(false);
-    setEditedTemplate({ templatename: "", headers: [], maxRows: "" });
-  };
-
-  const handleHeaderChange = (index, field, value) => {
-    const updatedHeaders = [...editedTemplate.headers];
-    updatedHeaders[index][field] = value;
-    setEditedTemplate({
-      ...editedTemplate,
-      headers: updatedHeaders,
-    });
+    navigate("/edittemplate", { state: { template: template } });
   };
 
   return (

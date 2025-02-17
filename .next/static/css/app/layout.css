@@ -685,6 +685,9 @@ video {
 .animate-spin{
   animation: spin 1s linear infinite;
 }
+.cursor-move{
+  cursor: move;
+}
 .cursor-not-allowed{
   cursor: not-allowed;
 }
