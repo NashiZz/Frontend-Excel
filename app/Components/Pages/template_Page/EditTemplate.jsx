@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlusCircle, faFileAlt } from '@fortawesome/free-solid-svg-icons';
+import { faPlusCircle, faFileAlt, faArrowUp, faArrowDown} from '@fortawesome/free-solid-svg-icons';
 import { updateTemplate } from "@/app/Service/templateService";
 
 const EditTemplate = () => {
@@ -82,6 +82,13 @@ const EditTemplate = () => {
         if (expandedHeader === index) {
             setExpandedHeader(null);
         }
+    };
+
+    const moveHeader = (index, direction) => {
+        const newHeaders = [...headers];
+        const [removed] = newHeaders.splice(index, 1);
+        newHeaders.splice(index + direction, 0, removed);
+        setHeaders(newHeaders);
     };
 
     const openOptionDialog = (header) => {
@@ -272,8 +279,8 @@ const EditTemplate = () => {
                 <input
                     type="number"
                     className="w-full border border-gray-300 rounded-md p-2"
-                    value={maxRows}
-                    onChange={(e) => setMaxRows(parseInt(e.target.value))}
+                    value={maxRows || 0}
+                    onChange={(e) => setMaxRows(e.target.value ? parseInt(e.target.value) : 0)}
                 />
             </div>
 
@@ -316,7 +323,7 @@ const EditTemplate = () => {
                                         className="w-full border border-gray-300 rounded-md p-2 mt-2"
                                         value={header.name}
                                         onChange={(e) =>
-                                            handleHeaderChange(index, "name", e.target.value)
+                                            handleHeaderChange(index, 'name', e.target.value)
                                         }
                                         placeholder="กรอกชื่อ Header"
                                     />
@@ -328,7 +335,7 @@ const EditTemplate = () => {
                                         className="w-full border border-gray-300 rounded-md p-2 mt-2"
                                         value={header.condition}
                                         onChange={(e) =>
-                                            handleHeaderChange(index, "condition", e.target.value)
+                                            handleHeaderChange(index, 'condition', e.target.value)
                                         }
                                     >
                                         <option value="">เลือกเงื่อนไข</option>
@@ -338,18 +345,39 @@ const EditTemplate = () => {
                                             </option>
                                         ))}
                                     </select>
-                                    <button
-                                        type="button"
-                                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                                        onClick={() => setExpandedHeader(null)}
-                                    >
-                                        บันทึก
-                                    </button>
+
+                                    <div className="flex justify-between mt-4">
+                                        <button
+                                            type="button"
+                                            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                            onClick={() => setExpandedHeader(null)}
+                                        >
+                                            บันทึก
+                                        </button>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                className="text-blue-500 px-2"
+                                                onClick={() => moveHeader(index, -1)} 
+                                                disabled={index === 0}
+                                            >
+                                                <FontAwesomeIcon icon={faArrowUp} /> สลับขึ้น
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="text-blue-500"
+                                                onClick={() => moveHeader(index, 1)} 
+                                                disabled={index === headers.length - 1}
+                                            >
+                                                <FontAwesomeIcon icon={faArrowDown} /> สลับลง
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
                     ))}
-                    
+
                     <button
                         type="button"
                         onClick={addHeader}

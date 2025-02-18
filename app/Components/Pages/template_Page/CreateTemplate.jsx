@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlusCircle, faFileAlt } from '@fortawesome/free-solid-svg-icons';
+import { faPlusCircle, faFileAlt, faTrashAlt } from '@fortawesome/free-solid-svg-icons';
 
 const CreateTemplate = () => {
     const navigate = useNavigate();
@@ -24,6 +24,7 @@ const CreateTemplate = () => {
     const [selectedFirstColumn, setSelectedFirstColumn] = useState('');
     const [selectedSecondColumn, setSelectedSecondColumn] = useState('');
     const [selectedCondition, setSelectedCondition] = useState('');
+    const [file, setFile] = useState(null);
 
     const conditions = [
         { value: "name", label: "ตรวจสอบชื่อ" },
@@ -267,7 +268,29 @@ const CreateTemplate = () => {
             setIsDialogOpen(true);
         }
     };
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const binaryString = event.target.result;
+            const workbook = XLSX.read(binaryString, { type: "binary" });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+            const newHeaders = jsonData[0].map((header) => ({ name: header, condition: "" }));
+            setHeaders(newHeaders);
+        };
+        reader.readAsBinaryString(file);
+        setFile(file);
+    };
+
+    const handleRemoveFile = () => {
+        setFile(null);
+        setHeaders([]);
+        document.getElementById('file-upload').value = '';
+    };
 
     const generateExcel = (headers, fileName) => {
         const headerNames = headers.map(header => header.name);
@@ -294,21 +317,47 @@ const CreateTemplate = () => {
 
     return (
         <div className="container mx-auto p-6 pt-28">
-            <div className="flex mb-6">
+            <div className="flex items-center mb-6">
                 <button
                     onClick={() => navigate("/template")}
-                    className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+                    className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
                     กลับ
                 </button>
-                <h1 className="ml-8 text-2xl font-bold">สร้างเทมเพลตใหม่</h1>
+                <h1 className="text-3xl font-bold text-gray-800 ml-12">สร้างเทมเพลตใหม่</h1>
             </div>
+
             <div className="flex flex-col md:flex-row gap-6">
                 <div className="w-full md:w-1/2">
-                    <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                    <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-gray-700">
                         <FontAwesomeIcon icon={faPlusCircle} className="text-blue-500 w-6 h-6" />
                         เพิ่มหัวข้อคอลัมน์
                     </h2>
+                    <div className="bg-white p-6 mb-6 rounded-lg shadow-lg border border-gray-200">
+                        <label htmlFor="file-upload" className="block text-lg font-semibold text-gray-700 mb-2">
+                            เพิ่มหัวข้อคอลัมน์จากไฟล์ Excel
+                        </label>
+                        <div className="flex items-center space-x-4">
+                            <input
+                                id="file-upload"
+                                type="file"
+                                accept=".xlsx, .xls"
+                                onChange={handleFileUpload}
+                                className="block w-full text-sm text-gray-700 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2 px-4"
+                            />
+                            {file && (
+                                <label
+                                    onClick={handleRemoveFile}
+                                    className="cursor-pointer text-red-500 hover:text-red-600"
+                                >
+                                    <FontAwesomeIcon icon={faTrashAlt} className="w-5 h-5" />
+                                </label>
+                            )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                            กรุณาเลือกไฟล์ Excel ที่ต้องการอัพโหลด
+                        </p>
+                    </div>
                     <form onSubmit={handleSubmit}>
                         {headers.map((header, index) => (
                             <div key={index} className="mb-4">
@@ -395,30 +444,46 @@ const CreateTemplate = () => {
                             </div>
                         ))}
 
-                        <button
-                            type="button"
-                            onClick={addHeader}
-                            className="bg-gray-200 text-gray-700 rounded-md px-4 py-2 hover:bg-gray-300"
-                        >
-                            เพิ่ม Header
-                        </button>
-
-                        {headers.length > 1 && (
+                        <div className='flex flex-row'>
                             <button
                                 type="button"
-                                onClick={openOptionDialog}
-                                className="ml-4 bg-gray-200 text-gray-700 rounded-md px-4 py-2 hover:bg-gray-300"
+                                onClick={addHeader}
+                                className=" bg-gray-200 text-gray-700 rounded-md px-4 py-2 hover:bg-gray-300"
                             >
-                                Option
+                                เพิ่ม Header
                             </button>
-                        )}
+
+                            {headers.length > 1 && (
+                                <div className="flex items-center">
+                                    {!headers.some(header => !header.condition) ? (
+                                        <button
+                                            type="button"
+                                            onClick={openOptionDialog}
+                                            className="ml-4 bg-gray-200 text-gray-700 rounded-md px-4 py-2 hover:bg-gray-300"
+                                        >
+                                            Option
+                                        </button>
+                                    ) : (
+                                        <p className="text-sm text-red-500 ml-6">
+                                            กรุณากรอกข้อมูลให้ครบทุกหัวข้อก่อนที่จะเปิด Option
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
                         <div className="flex justify-end mt-6">
                             <button
                                 type="button"
-                                onClick={() => setIsDialogOpen(true)}
+                                onClick={() => {
+                                    const isIncomplete = headers.some(header => !header.name.trim() || !header.condition);
+                                    if (isIncomplete) {
+                                        alert("กรุณากรอกข้อมูลให้ครบทุกหัวข้อ");
+                                    } else {
+                                        setIsDialogOpen(true);
+                                    }
+                                }}
                                 className="mr-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                                disabled={headers.some(header => !header.name.trim() || !header.condition)}
                             >
                                 บันทึก Template
                             </button>
@@ -430,6 +495,7 @@ const CreateTemplate = () => {
                                 ดาวน์โหลดไฟล์
                             </button>
                         </div>
+
                     </form>
                 </div>
 

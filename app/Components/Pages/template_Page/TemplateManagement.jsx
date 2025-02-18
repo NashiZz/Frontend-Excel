@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFileAlt, faEdit, faTrashAlt, faSpinner, faCopy, faEyeSlash, faEye } from '@fortawesome/free-solid-svg-icons';
+import { faFileAlt, faEdit, faTrashAlt, faCopy, faEyeSlash, faEye } from '@fortawesome/free-solid-svg-icons';
 import { v4 as uuidv4 } from "uuid";
-import { deleteTemplate, fetchTemplates, updateTemplate, updateUserTokenInBackend } from "@/app/Service/templateService";
+import { deleteTemplate, fetchTemplates, updateUserTokenInBackend } from "@/app/Service/templateService";
 
 const TemplateManagement = () => {
   const [templates, setTemplates] = useState([]);
@@ -139,7 +139,6 @@ const TemplateManagement = () => {
   const handleEditTemplate = (template) => {
     setCurrentTemplate(template);
     setEditedTemplate({ ...template });
-    console.log(template);
 
     navigate("/edittemplate", { state: { template: template } });
   };
@@ -318,10 +317,13 @@ const TemplateManagement = () => {
                 </div>
               ) : (
                 <>
-                  <div className="bg-white rounded-lg p-6 w-80">
-                    < h2 className="text-xl font-semibold mb-4">คุณแน่ใจหรือไม่ที่จะลบเทมเพลตนี้?</h2>
-                    <p>ชื่อเทมเพลต: {templateToDelete?.templatename}</p>
-                    <div className="mt-4 flex justify-end gap-4">
+                  <div className="bg-white rounded-lg p-6 w-120">
+                    <h2 className="text-xl font-semibold mb-6">คุณแน่ใจหรือไม่ที่จะลบเทมเพลตนี้?</h2>
+                    <div className="text-center">
+                      <p>ชื่อเทมเพลต</p>
+                      <h2 className="font-semibold text-blue-800">{templateToDelete?.templatename}</h2>
+                    </div>
+                    <div className="mt-6 flex justify-between gap-4">
                       <button
                         onClick={closeDeleteDialog}
                         className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
