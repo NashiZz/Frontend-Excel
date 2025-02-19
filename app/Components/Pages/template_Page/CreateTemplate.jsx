@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
-import { v4 as uuidv4 } from 'uuid';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlusCircle, faFileAlt } from '@fortawesome/free-solid-svg-icons';
-import { saveTemplate } from '@/app/Service/templateService';
+import { faPlusCircle, faFileAlt, faTrashAlt } from '@fortawesome/free-solid-svg-icons';
 
 const CreateTemplate = () => {
     const navigate = useNavigate();
@@ -20,7 +18,13 @@ const CreateTemplate = () => {
     const [calculationType, setCalculationType] = useState('');
     const [selectedHeader, setSelectedHeader] = useState(null);
     const [calculationCondition, setCalculationCondition] = useState([]);
+    const [relationCondition, setRelationCondition] = useState([]);
     const [selectedColumns, setSelectedColumns] = useState({});
+    const [isSaving, setIsSaving] = useState(false);
+    const [selectedFirstColumn, setSelectedFirstColumn] = useState('');
+    const [selectedSecondColumn, setSelectedSecondColumn] = useState('');
+    const [selectedCondition, setSelectedCondition] = useState('');
+    const [file, setFile] = useState(null);
 
     const conditions = [
         { value: "name", label: "ตรวจสอบชื่อ" },
@@ -33,12 +37,13 @@ const CreateTemplate = () => {
         { value: "balance", label: "ตรวจสอบเกี่ยวกับการเงิน" },
     ];
 
+    const conditionOptions = [
+        { label: 'ต้องมีข้อมูล', value: 'notEmpty' },
+        { label: 'ต้องมีค่าตาม Column ที่1', value: 'exists' },
+    ];
+
     const getUserToken = () => {
         let token = localStorage.getItem("userToken");
-        if (!token) {
-            token = uuidv4();
-            localStorage.setItem("userToken", token);
-        }
         return token;
     };
 
@@ -55,7 +60,8 @@ const CreateTemplate = () => {
             headers: headers,
             maxRows: maxRows,
             condition: {
-                calculations: calculationCondition || []
+                calculations: calculationCondition || [],
+                relations: relationCondition || []
             }
         };
 
@@ -64,9 +70,10 @@ const CreateTemplate = () => {
         localStorage.setItem("templates", JSON.stringify(existingTemplates));
 
         console.log("Sending template:", newTemplate);
+        setIsSaving(true);
 
         try {
-            const response = await fetch("https://backend-excel-cagd.onrender.com/api/save/templates", {
+            const response = await fetch("http://localhost:8080/api/save/templates", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -77,12 +84,15 @@ const CreateTemplate = () => {
             if (response.ok) {
                 alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
                 setIsDialogOpen(false);
+                navigate("/template");
             } else {
                 alert(`Error: ${data.message}`);
             }
         } catch (error) {
             console.error("Error saving template:", error);
             alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -131,6 +141,48 @@ const CreateTemplate = () => {
         });
     };
 
+    const handleFirstColumnChange = (e) => {
+        setSelectedFirstColumn(e.target.value);
+        if (e.target.value === selectedSecondColumn) {
+            setSelectedSecondColumn("");
+        }
+    };
+
+    const handleSecondColumnChange = (e) => {
+        setSelectedSecondColumn(e.target.value);
+        if (e.target.value === selectedFirstColumn) {
+            setSelectedFirstColumn("");
+        }
+    };
+
+    const handleConditionChange = (e) => {
+        setSelectedCondition(e.target.value);
+    };
+
+    const addColumnCondition = () => {
+        if (!selectedFirstColumn || !selectedSecondColumn || !selectedCondition) {
+            alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+            return;
+        }
+
+        if (selectedFirstColumn === selectedSecondColumn) {
+            alert("ไม่สามารถเลือกคอลัมน์เดียวกันได้");
+            return;
+        }
+
+        const newCondition = {
+            column1: selectedFirstColumn,
+            condition: selectedCondition,
+            column2: selectedSecondColumn,
+        };
+
+        setRelationCondition(prevConditions => [...prevConditions, newCondition]);
+
+        setSelectedFirstColumn('');
+        setSelectedSecondColumn('');
+        setSelectedCondition('');
+    };
+
     const addHeader = () => {
         setHeaders([...headers, { name: "", condition: "" }]);
         setExpandedHeader(headers.length);
@@ -168,6 +220,11 @@ const CreateTemplate = () => {
         setCalculationCondition(updatedConditions);
     };
 
+    const removeRelation = (index) => {
+        const updatedConditions = relationCondition.filter((_, i) => i !== index);
+        setRelationCondition(updatedConditions);
+    };
+
     const handleColumnSelect = (columnName, columnType) => {
         if (
             (columnType === 'addend' && (selectedColumns.operand === columnName || selectedColumns.result === columnName)) ||
@@ -186,6 +243,7 @@ const CreateTemplate = () => {
     const validateHeaders = () => {
         for (let i = 0; i < headers.length; i++) {
             const header = headers[i];
+
             if (!header.name.trim()) {
                 alert(`กรุณากรอกชื่อ Header ในบรรทัดที่ ${i + 1}`);
                 return false;
@@ -209,6 +267,29 @@ const CreateTemplate = () => {
         if (validateHeaders()) {
             setIsDialogOpen(true);
         }
+    };
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const binaryString = event.target.result;
+            const workbook = XLSX.read(binaryString, { type: "binary" });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+            const newHeaders = jsonData[0].map((header) => ({ name: header, condition: "" }));
+            setHeaders(newHeaders);
+        };
+        reader.readAsBinaryString(file);
+        setFile(file);
+    };
+
+    const handleRemoveFile = () => {
+        setFile(null);
+        setHeaders([]);
+        document.getElementById('file-upload').value = '';
     };
 
     const generateExcel = (headers, fileName) => {
@@ -236,21 +317,47 @@ const CreateTemplate = () => {
 
     return (
         <div className="container mx-auto p-6 pt-28">
-            <div className="flex mb-6">
+            <div className="flex items-center mb-6">
                 <button
                     onClick={() => navigate("/template")}
-                    className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+                    className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
                     กลับ
                 </button>
-                <h1 className="ml-8 text-2xl font-bold">สร้างเทมเพลตใหม่</h1>
+                <h1 className="text-3xl font-bold text-gray-800 ml-12">สร้างเทมเพลตใหม่</h1>
             </div>
+
             <div className="flex flex-col md:flex-row gap-6">
                 <div className="w-full md:w-1/2">
-                    <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                    <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-gray-700">
                         <FontAwesomeIcon icon={faPlusCircle} className="text-blue-500 w-6 h-6" />
                         เพิ่มหัวข้อคอลัมน์
                     </h2>
+                    <div className="bg-white p-6 mb-6 rounded-lg shadow-lg border border-gray-200">
+                        <label htmlFor="file-upload" className="block text-lg font-semibold text-gray-700 mb-2">
+                            เพิ่มหัวข้อคอลัมน์จากไฟล์ Excel
+                        </label>
+                        <div className="flex items-center space-x-4">
+                            <input
+                                id="file-upload"
+                                type="file"
+                                accept=".xlsx, .xls"
+                                onChange={handleFileUpload}
+                                className="block w-full text-sm text-gray-700 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 py-2 px-4"
+                            />
+                            {file && (
+                                <label
+                                    onClick={handleRemoveFile}
+                                    className="cursor-pointer text-red-500 hover:text-red-600"
+                                >
+                                    <FontAwesomeIcon icon={faTrashAlt} className="w-5 h-5" />
+                                </label>
+                            )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                            กรุณาเลือกไฟล์ Excel ที่ต้องการอัพโหลด
+                        </p>
+                    </div>
                     <form onSubmit={handleSubmit}>
                         {headers.map((header, index) => (
                             <div key={index} className="mb-4">
@@ -337,28 +444,45 @@ const CreateTemplate = () => {
                             </div>
                         ))}
 
-                        <button
-                            type="button"
-                            onClick={addHeader}
-                            className="bg-gray-200 text-gray-700 rounded-md px-4 py-2 hover:bg-gray-300"
-                        >
-                            เพิ่ม Header
-                        </button>
-
-                        {headers.length > 1 && (
+                        <div className='flex flex-row'>
                             <button
                                 type="button"
-                                onClick={openOptionDialog}
-                                className="ml-4 bg-gray-200 text-gray-700 rounded-md px-4 py-2 hover:bg-gray-300"
+                                onClick={addHeader}
+                                className=" bg-gray-200 text-gray-700 rounded-md px-4 py-2 hover:bg-gray-300"
                             >
-                                Option
+                                เพิ่ม Header
                             </button>
-                        )}
+
+                            {headers.length > 1 && (
+                                <div className="flex items-center">
+                                    {!headers.some(header => !header.condition) ? (
+                                        <button
+                                            type="button"
+                                            onClick={openOptionDialog}
+                                            className="ml-4 bg-gray-200 text-gray-700 rounded-md px-4 py-2 hover:bg-gray-300"
+                                        >
+                                            Option
+                                        </button>
+                                    ) : (
+                                        <p className="text-sm text-red-500 ml-6">
+                                            กรุณากรอกข้อมูลให้ครบทุกหัวข้อก่อนที่จะเปิด Option
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
                         <div className="flex justify-end mt-6">
                             <button
                                 type="button"
-                                onClick={() => setIsDialogOpen(true)}
+                                onClick={() => {
+                                    const isIncomplete = headers.some(header => !header.name.trim() || !header.condition);
+                                    if (isIncomplete) {
+                                        alert("กรุณากรอกข้อมูลให้ครบทุกหัวข้อ");
+                                    } else {
+                                        setIsDialogOpen(true);
+                                    }
+                                }}
                                 className="mr-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
                             >
                                 บันทึก Template
@@ -371,6 +495,7 @@ const CreateTemplate = () => {
                                 ดาวน์โหลดไฟล์
                             </button>
                         </div>
+
                     </form>
                 </div>
 
@@ -396,6 +521,18 @@ const CreateTemplate = () => {
                                     {calculationCondition.map((condition, index) => (
                                         <li key={index} className="mt-1">
                                             {`${condition.addend} ${condition.type} ${condition.operand} = ${condition.result}`}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {relationCondition && relationCondition.length > 0 && (
+                            <div className="mt-4">
+                                <h4 className="text-lg font-semibold">เงื่อนไขความสัมพันธ์ของคอลัมน์:</h4>
+                                <ul className="list-disc pl-5 text-sm md:text-base">
+                                    {relationCondition.map((relation, index) => (
+                                        <li key={index} className="mt-1">
+                                            {`${relation.column1} ${relation.condition} ${relation.column2}`}
                                         </li>
                                     ))}
                                 </ul>
@@ -599,14 +736,92 @@ const CreateTemplate = () => {
                     <div className="bg-white p-6 rounded-md shadow-lg w-96">
                         <h2 className="text-lg font-bold mb-4">เพิ่มเงื่อนไขคอลัมน์สัมพันธ์กัน</h2>
 
-                        <p>⚠️ ตั้งค่าเงื่อนไขที่ต้องการ เช่น หาก Column A มีค่า → Column B ต้องมีค่า</p>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">เลือกคอลัมน์ที่ 1</label>
+                            <select
+                                value={selectedFirstColumn}
+                                onChange={handleFirstColumnChange}
+                                className="w-full border border-gray-300 rounded-md p-2"
+                            >
+                                <option value="">-- เลือกคอลัมน์ --</option>
+                                {headers
+                                    .filter((header) => header.name !== selectedSecondColumn)
+                                    .map((header) => (
+                                        <option key={header.name} value={header.name}>
+                                            {header.name}
+                                        </option>
+                                    ))}
+                            </select>
+                        </div>
 
-                        <button
-                            className="w-full mt-4 py-2 px-4 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-                            onClick={() => setIsColumnConditionDialogOpen(false)}
-                        >
-                            ปิด
-                        </button>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">เลือกคอลัมน์ที่ 2</label>
+                            <select
+                                value={selectedSecondColumn}
+                                onChange={handleSecondColumnChange}
+                                className="w-full border border-gray-300 rounded-md p-2"
+                            >
+                                <option value="">-- เลือกคอลัมน์ --</option>
+                                {headers
+                                    .filter((header) => header.name !== selectedFirstColumn)
+                                    .map((header) => (
+                                        <option key={header.name} value={header.name}>
+                                            {header.name}
+                                        </option>
+                                    ))}
+                            </select>
+                        </div>
+
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">เงื่อนไข</label>
+                            <select
+                                value={selectedCondition}
+                                onChange={handleConditionChange}
+                                className="w-full border border-gray-300 rounded-md p-2"
+                            >
+                                <option value="">-- เลือกเงื่อนไข --</option>
+                                {conditionOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {relationCondition.length > 0 && (
+                            <div className="mt-4 mb-6">
+                                <h4 className="text-lg font-semibold">เงื่อนไขที่เพิ่มเข้ามา:</h4>
+                                <ul className="list-disc pl-5">
+                                    {relationCondition.map((relation, index) => (
+                                        <li key={index} className="flex justify-between items-center">
+                                            {`${relation.column1} ${relation.condition} ${relation.column2}`}
+                                            <button
+                                                onClick={() => removeRelation(index)}
+                                                className="ml-2 text-red-600 hover:text-red-800"
+                                            >
+                                                ลบ
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        <div className="flex justify-between mt-4">
+                            <button
+                                onClick={addColumnCondition}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            >
+                                เพิ่มเงื่อนไข
+                            </button>
+                            <button
+                                onClick={() => setIsColumnConditionDialogOpen(false)}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                            >
+                                ปิด
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -614,42 +829,53 @@ const CreateTemplate = () => {
             {isDialogOpen && (
                 <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
                     <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
-                        <h3 className="text-xl font-semibold mb-4">ตั้งชื่อ Template</h3>
-                        <input
-                            type="text"
-                            className="w-full border border-gray-300 rounded-md p-2 mb-4"
-                            value={fileName}
-                            onChange={handleFileNameChange}
-                            placeholder="กรุณากรอกชื่อ Template"
-                        />
-                        <label htmlFor="maxRows" className="block text-sm font-medium text-gray-700 mb-2">จำนวนแถวสูงสุด:</label>
-                        <input
-                            type="number"
-                            id="maxRows"
-                            className="w-full border border-gray-300 rounded-md p-2 mt-2"
-                            value={maxRows}
-                            onChange={(e) => setMaxRows(Number(e.target.value))}
-                            min="1"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                            กำหนดจำนวนแถวสูงสุดที่เทมเพลตสามารถรองรับได้
-                        </p>
-                        <div className="flex justify-end gap-4">
-                            <button
-                                type="button"
-                                onClick={() => setIsDialogOpen(false)}
-                                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md"
-                            >
-                                ยกเลิก
-                            </button>
-                            <button
-                                type="button"
-                                onClick={saveToLocalStorage}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md"
-                            >
-                                บันทึก
-                            </button>
-                        </div>
+                        {isSaving ? (
+                            <div className="flex flex-col items-center">
+                                <p className="text-lg font-semibold">กำลังบันทึก...</p>
+                                <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
+                            </div>
+                        ) : (
+                            <>
+                                <h3 className="text-xl font-semibold mb-4">ตั้งชื่อ Template</h3>
+                                <input
+                                    type="text"
+                                    className="w-full border border-gray-300 rounded-md p-2 mb-4"
+                                    value={fileName}
+                                    onChange={handleFileNameChange}
+                                    placeholder="กรุณากรอกชื่อ Template"
+                                />
+                                <label htmlFor="maxRows" className="block text-sm font-medium text-gray-700 mb-2">
+                                    จำนวนแถวสูงสุด:
+                                </label>
+                                <input
+                                    type="number"
+                                    id="maxRows"
+                                    className="w-full border border-gray-300 rounded-md p-2 mt-2"
+                                    value={maxRows}
+                                    onChange={(e) => setMaxRows(Number(e.target.value))}
+                                    min="1"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    กำหนดจำนวนแถวสูงสุดที่เทมเพลตสามารถรองรับได้
+                                </p>
+                                <div className="flex justify-end gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsDialogOpen(false)}
+                                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md"
+                                    >
+                                        ยกเลิก
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={saveToLocalStorage}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md"
+                                    >
+                                        บันทึก
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}

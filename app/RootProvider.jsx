@@ -6,6 +6,7 @@ import ExcelUpload from "./Components/pages/uploadFile_Page/excelUpload";
 import RootPage from "./Components/pages/RootPage";
 import CreateTemplate from "./Components/Pages/template_Page/CreateTemplate";
 import TemplateManagement from "./Components/pages/template_Page/TemplateManagement";
+import EditTemplate from "./Components/pages/template_Page/EditTemplate";
 
 const AppRouter = () => {
     const [isClient, setIsClient] = useState(false);
@@ -25,6 +26,7 @@ const AppRouter = () => {
                     <Route index element={<ExcelUpload />} />
                     <Route path="/template" element={<TemplateManagement />} />
                     <Route path="/createtemplate" element={<CreateTemplate />} />
+                    <Route path="/edittemplate" element={<EditTemplate />} />
                 </Route>
             </Routes>
         </Router>

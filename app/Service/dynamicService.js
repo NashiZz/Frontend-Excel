@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = " https://backend-excel-cagd.onrender.com/api";
+const API_BASE_URL = "http://localhost:8080/api";
 
 export const uploadExcelFile = async (file, setErrors, setSuccessMessage) => {
     const formData = new FormData();
@@ -59,11 +59,12 @@ export const uploadExcelFileWithHeader = async (file, header, setErrors, setSucc
     }
 };
 
-export const uploadExcelFileWithTemplate = async (file, condition, calculaterDetail, setErrors, setSuccessMessage) => {
+export const uploadExcelFileWithTemplate = async (file, condition, calculater, relation, setErrors, setSuccessMessage) => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("condition", JSON.stringify(condition));
-    formData.append("calculater", JSON.stringify(calculaterDetail)); 
+    formData.append("calculater", JSON.stringify(calculater));
+    formData.append("relation", JSON.stringify(relation));
 
     try {
         const response = await axios.post(`${API_BASE_URL}/excel/template`, formData, {
@@ -81,8 +82,12 @@ export const uploadExcelFileWithTemplate = async (file, condition, calculaterDet
             const errorData = error.response.data;
             if (errorData.errors) {
                 setErrors(errorData.errors);
+                console.log(errorData.errors);
+                
             } else {
                 setErrors([errorData.message || "เกิดข้อผิดพลาด"]);
+                console.log(errorData.message);
+                
             }
         } else {
             console.error("Error:", error.message);

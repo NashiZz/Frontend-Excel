@@ -1,17 +1,19 @@
-import { uploadExcelFile, uploadExcelFileWithHeader, uploadExcelFileWithTemplate} from '@/app/Service/dynamicService';
+import { uploadExcelFile, uploadExcelFileWithHeader, uploadExcelFileWithTemplate } from '@/app/Service/dynamicService';
 import React, { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
-import { getTemplateData, loadTemplates } from './excelTemplate';
 import { downloadErrorReport } from './excelErrorReport';
+import { fetchTemplates } from '@/app/Service/templateService';
 
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
     const [headers, setHeaders] = useState([]);
     const [rows, setRows] = useState([]);
+    const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
     const [errors, setErrors] = useState([]);
     const [successMessage, setSuccessMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingDialog, setIsLoadingDialog] = useState(false);
     const [uploadOption, setUploadOption] = useState('noTopic');
     const [selectedHeader, setSelectedHeader] = useState('');
     const [selectedTemplate, setSelectedTemplate] = useState('');
@@ -20,13 +22,34 @@ const ExcelUpload = () => {
     const [condition, setCondition] = useState([]);
 
     useEffect(() => {
-        loadTemplates(setTemplates);
-    }, []);
+        const fetchTemplatesData = async () => {
+            if (!userToken) {
+                return;
+            }
+
+            const data = await fetchTemplates(userToken);
+            if (data && data.templates) {
+                if (data.templates.length === 0) {
+                    console.log("ไม่พบเทมเพลต, กรุณาสร้างเทมเพลตก่อน");
+                    setTemplates([]);
+                } else {
+                    setTemplates(data.templates);
+                }
+            }
+        };
+
+        fetchTemplatesData();
+    }, [userToken]);
 
     useEffect(() => {
-        setSuccessMessage("");
-        getTemplateData(selectedTemplate, setMaxRows, setCondition);
-    }, [selectedTemplate]);
+        if (selectedTemplate) {
+            const templateData = templates.find(template => template.templatename === selectedTemplate);
+            if (templateData) {
+                setMaxRows(templateData.maxRows);
+                setCondition(templateData.headers.map(header => header.condition));
+            }
+        }
+    }, [selectedTemplate, templates]);
 
     useEffect(() => {
         if (selectedTemplate) {
@@ -95,6 +118,7 @@ const ExcelUpload = () => {
 
         setSuccessMessage("")
         setIsLoading(true);
+        setIsLoadingDialog(true);
 
         try {
             await uploadExcelFile(file, setErrors, setSuccessMessage);
@@ -104,6 +128,7 @@ const ExcelUpload = () => {
             toast.error('❌ การอัปโหลดล้มเหลว!', { position: 'bottom-right', autoClose: 3000 });
         } finally {
             setIsLoading(false);
+            setIsLoadingDialog(false);
         }
     };
 
@@ -125,6 +150,7 @@ const ExcelUpload = () => {
 
         setSuccessMessage("")
         setIsLoading(true);
+        setIsLoadingDialog(true);
 
         try {
             if (uploadOption === 'withTopic') {
@@ -136,6 +162,7 @@ const ExcelUpload = () => {
             console.error('Error uploading file:', error);
         } finally {
             setIsLoading(false);
+            setIsLoadingDialog(false);
         }
     };
 
@@ -150,8 +177,7 @@ const ExcelUpload = () => {
             return;
         }
 
-        const storedTemplates = JSON.parse(localStorage.getItem('templates')) || [];
-        const selectedTemplateData = storedTemplates.find(template => template.templatename === selectedTemplate);
+        const selectedTemplateData = templates.find(template => template.templatename === selectedTemplate);
 
         if (!selectedTemplateData) {
             setErrors(['ไม่พบข้อมูลเทมเพลต']);
@@ -161,12 +187,19 @@ const ExcelUpload = () => {
         const conditions = selectedTemplateData.headers.map(header => header.condition);
         const templateNames = selectedTemplateData.headers.map(header => header.name);
         const calculations = selectedTemplateData.condition?.calculations || [];
+        const relations = selectedTemplateData.condition?.relations || [];
 
         const calculationDetails = calculations.map(calculation => [
             calculation.type,
             calculation.addend,
             calculation.operand,
             calculation.result
+        ]);
+
+        const relationDetails = relations.map(relation => [
+            relation.column1,
+            relation.condition,
+            relation.column2,
         ]);
 
         const lowercaseHeaders = headers.map(header => header.toLowerCase());
@@ -186,18 +219,18 @@ const ExcelUpload = () => {
 
         setSuccessMessage("");
         setIsLoading(true);
+        setIsLoadingDialog(true);
 
         try {
-            await uploadExcelFileWithTemplate(file, conditions, calculationDetails, setErrors, setSuccessMessage);
+            await uploadExcelFileWithTemplate(file, conditions, calculationDetails, relationDetails, setErrors, setSuccessMessage);
             toast.success('🎉 อัปโหลดไฟล์สำเร็จ!', { position: 'bottom-right', autoClose: 3000 });
         } catch (error) {
             console.error('Error uploading file:', error);
             toast.error('❌ การอัปโหลดล้มเหลว!', { position: 'bottom-right', autoClose: 3000 });
         } finally {
             setIsLoading(false);
+            setIsLoadingDialog(false);
         }
-
-        console.log('Errors:', errors.errorDetails);
     };
 
     const handleDownloadErrorReport = () => {
@@ -208,6 +241,14 @@ const ExcelUpload = () => {
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
 
             <div className="max-w-md w-full mx-auto p-6 bg-white shadow-lg rounded-lg kanit-regular">
+                {isLoadingDialog && (
+                    <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+                        <div className="bg-white p-6 rounded-lg flex flex-col items-center">
+                            <h3 className="text-xl font-semibold mb-4">กำลังตรวจสอบข้อมูลในไฟล์...</h3>
+                            <div className="w-10 h-10 border-4 border-blue-500 border-solid border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    </div>
+                )}
 
                 <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">📂 ตรวจสอบข้อมูลไฟล์ Excel</h2>
 
@@ -222,8 +263,8 @@ const ExcelUpload = () => {
                         >
                             <option value="">-- เลือกเทมเพลต --</option>
                             {templates.map((template, index) => (
-                                <option key={index} value={template}>
-                                    {template}
+                                <option key={index} value={template.templatename}>
+                                    {template.templatename}
                                 </option>
                             ))}
                         </select>
@@ -310,11 +351,6 @@ const ExcelUpload = () => {
                     {isLoading ? 'กำลังอัปโหลด...' : 'อัปโหลดไฟล์'}
                 </button>
 
-                {isLoading && (
-                    <div className="mt-4 flex justify-center">
-                        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                )}
                 {errors.length > 0 ? (
                     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
                         <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-lg p-6">
