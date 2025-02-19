@@ -82,8 +82,12 @@ export const uploadExcelFileWithTemplate = async (file, condition, calculater, r
             const errorData = error.response.data;
             if (errorData.errors) {
                 setErrors(errorData.errors);
+                console.log(errorData.errors);
+                
             } else {
                 setErrors([errorData.message || "เกิดข้อผิดพลาด"]);
+                console.log(errorData.message);
+                
             }
         } else {
             console.error("Error:", error.message);

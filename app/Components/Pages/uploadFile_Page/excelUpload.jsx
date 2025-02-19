@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import { downloadErrorReport } from './excelErrorReport';
 import { fetchTemplates } from '@/app/Service/templateService';
+import { motion, AnimatePresence } from "framer-motion";
 
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
@@ -13,6 +14,7 @@ const ExcelUpload = () => {
     const [errors, setErrors] = useState([]);
     const [successMessage, setSuccessMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingDialog, setIsLoadingDialog] = useState(false);
     const [uploadOption, setUploadOption] = useState('noTopic');
     const [selectedHeader, setSelectedHeader] = useState('');
     const [selectedTemplate, setSelectedTemplate] = useState('');
@@ -117,6 +119,7 @@ const ExcelUpload = () => {
 
         setSuccessMessage("")
         setIsLoading(true);
+        setIsLoadingDialog(true);
 
         try {
             await uploadExcelFile(file, setErrors, setSuccessMessage);
@@ -126,6 +129,7 @@ const ExcelUpload = () => {
             toast.error('❌ การอัปโหลดล้มเหลว!', { position: 'bottom-right', autoClose: 3000 });
         } finally {
             setIsLoading(false);
+            setIsLoadingDialog(false);
         }
     };
 
@@ -147,6 +151,7 @@ const ExcelUpload = () => {
 
         setSuccessMessage("")
         setIsLoading(true);
+        setIsLoadingDialog(true);
 
         try {
             if (uploadOption === 'withTopic') {
@@ -158,6 +163,7 @@ const ExcelUpload = () => {
             console.error('Error uploading file:', error);
         } finally {
             setIsLoading(false);
+            setIsLoadingDialog(false);
         }
     };
 
@@ -197,12 +203,6 @@ const ExcelUpload = () => {
             relation.column2,
         ]);
 
-        console.log("✅ Conditions:", conditions);
-        console.log("✅ Template Names:", templateNames);
-        console.log("✅ Calculations:", calculations);
-        console.log("✅ Calculation Details:", calculationDetails);
-        console.log("Relations:", relationDetails);
-
         const lowercaseHeaders = headers.map(header => header.toLowerCase());
         const lowercaseTemplateNames = templateNames.map(name => name.toLowerCase());
 
@@ -220,6 +220,7 @@ const ExcelUpload = () => {
 
         setSuccessMessage("");
         setIsLoading(true);
+        setIsLoadingDialog(true);
 
         try {
             await uploadExcelFileWithTemplate(file, conditions, calculationDetails, relationDetails, setErrors, setSuccessMessage);
@@ -229,6 +230,7 @@ const ExcelUpload = () => {
             toast.error('❌ การอัปโหลดล้มเหลว!', { position: 'bottom-right', autoClose: 3000 });
         } finally {
             setIsLoading(false);
+            setIsLoadingDialog(false);
         }
     };
 
@@ -240,6 +242,26 @@ const ExcelUpload = () => {
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
 
             <div className="max-w-md w-full mx-auto p-6 bg-white shadow-lg rounded-lg kanit-regular">
+                <AnimatePresence>
+                    {isLoadingDialog && (
+                        <motion.div
+                            className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                        >
+                            <motion.div
+                                className="bg-white p-6 rounded-lg flex flex-col items-center"
+                                initial={{ scale: 0.8 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0.8 }}
+                            >
+                                <div className="w-12 h-12 border-4 border-blue-500 border-solid border-t-transparent rounded-full animate-spin"></div>
+                                <h3 className="text-xl font-semibold mt-4">กำลังตรวจสอบข้อมูลในไฟล์...</h3>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">📂 ตรวจสอบข้อมูลไฟล์ Excel</h2>
 
@@ -342,11 +364,6 @@ const ExcelUpload = () => {
                     {isLoading ? 'กำลังอัปโหลด...' : 'อัปโหลดไฟล์'}
                 </button>
 
-                {isLoading && (
-                    <div className="mt-4 flex justify-center">
-                        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                )}
                 {errors.length > 0 ? (
                     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
                         <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-lg p-6">

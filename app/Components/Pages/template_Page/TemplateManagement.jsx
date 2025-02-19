@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFileAlt, faEdit, faTrashAlt, faCopy, faEyeSlash, faEye } from '@fortawesome/free-solid-svg-icons';
+import { faFileAlt, faEdit, faTrashAlt, faCopy, faEyeSlash, faEye, faChevronDown, faChevronUp, faCloudArrowDown, faFileArrowDown, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { v4 as uuidv4 } from "uuid";
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import { deleteTemplate, fetchTemplates, updateUserTokenInBackend } from "@/app/Service/templateService";
 
 const TemplateManagement = () => {
@@ -143,13 +145,44 @@ const TemplateManagement = () => {
     navigate("/edittemplate", { state: { template: template } });
   };
 
+  const generateExcel = async (headers, fileName) => {
+    if (!headers || headers.length === 0) {
+      console.error("ไม่มี headers สำหรับสร้างไฟล์ Excel");
+      return;
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Template");
+
+    worksheet.columns = headers.map(header => ({
+      header: header.name,
+      key: header.key,
+      width: 20
+    }));
+
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    saveAs(blob, `${fileName}.xlsx`);
+  };
+
   return (
     <div className="container mx-auto p-6 pt-28">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex items-center mb-4">
         <h1 className="text-3xl font-semibold text-gray-800">
           <FontAwesomeIcon icon={faFileAlt} className="mr-2" />
           การจัดการเทมเพลต
         </h1>
+      </div>
+
+      <div className="flex mb-2 justify-between">
         <div className="bg-white shadow-md p-4 rounded-lg flex items-center justify-between w-2/3">
           <p className="text-gray-600 font-medium">
             Token ของคุณ:{" "}
@@ -185,23 +218,24 @@ const TemplateManagement = () => {
             </div>
           )}
         </div>
-      </div>
-
-      <div className="flex gap-4 mb-6">
-        <button
-          onClick={handleLoadOldTemplate}
-          className="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition"
-        >
-          โหลด Template เดิม
-        </button>
-        <button
-          className={`bg-green-500 text-white px-5 py-2 rounded-lg ${!userToken ? "opacity-50 cursor-not-allowed" : "hover:bg-green-600"
-            }`}
-          onClick={userToken ? handleAddTemplate : undefined}
-          disabled={!userToken}
-        >
-          เพิ่มเทมเพลต
-        </button>
+        <div className="flex gap-4 mt-6">
+          <button
+            onClick={handleLoadOldTemplate}
+            className="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition flex items-center"
+          >
+            <FontAwesomeIcon icon={faCloudArrowDown} className="mr-2" />
+            โหลด Template เดิม
+          </button>
+          <button
+            className={`bg-green-500 text-white px-5 py-2 rounded-lg flex items-center ${!userToken ? "opacity-50 cursor-not-allowed" : "hover:bg-green-600"
+              }`}
+            onClick={userToken ? handleAddTemplate : undefined}
+            disabled={!userToken}
+          >
+            <FontAwesomeIcon icon={faPlus} className="mr-2" />
+            เพิ่มเทมเพลต
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -213,91 +247,110 @@ const TemplateManagement = () => {
         <p className="text-gray-500">ไม่มีเทมเพลตที่บันทึก</p>
       ) : (
         <div className="overflow-x-auto bg-white shadow-md rounded-lg p-4">
-          <table className="table-auto w-full border-collapse border border-gray-200">
+          <table className="table-auto w-full border-collapse">
             <thead>
-              <tr className="bg-gray-100">
-                <th className="border border-gray-300 px-2 sm:px-4 py-2">ชื่อเทมเพลต</th>
-                <th className="border border-gray-300 px-2 sm:px-4 py-2">ชื่อ Header</th>
-                <th className="border border-gray-300 px-2 sm:px-4 py-2">จำนวน Row</th>
-                <th className="border border-gray-300 px-2 sm:px-4 py-2">จัดการ</th>
-                <th className="border border-gray-300 px-2 sm:px-4 py-2">เพิ่มเติม</th>
+              <tr className="bg-gray-100 text-left h-16">
+                <th className="px-2 sm:px-4 py-2">
+                  <span></span>
+                </th>
+                <th className="px-2 sm:px-4 py-2">ชื่อเทมเพลต</th>
+                <th className="px-2 sm:px-4 py-2">ชื่อ Header</th>
+                <th className="px-2 sm:px-4 py-2">จำนวน Row</th>
+                <th className="px-2 sm:px-4 py-2">จัดการ</th>
+                <th className="px-2 sm:px-4 py-2">
+                  <span></span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {templates.map((template, index) => (
                 <React.Fragment key={index}>
-                  <tr className="text-center">
-                    <td className="border border-gray-300 px-2 sm:px-4 py-2">{template.templatename}</td>
-                    <td className="border border-gray-300 px-2 sm:px-4 py-2">
+                  <tr className="text-left border-b h-20 hover:bg-gray-50">
+                    <td className="px-2 sm:px-4 py-2">
+                      <button
+                        onClick={() => toggleExpand(template.templatename)}
+                        className="text-blue-500 hover:text-blue-700"
+                      >
+                        <FontAwesomeIcon
+                          icon={isExpanded[template.templatename] ? faChevronUp : faChevronDown}
+                        />
+                      </button>
+                    </td>
+                    <td className="px-2 sm:px-4 py-2 font-medium">{template.templatename}</td>
+                    <td className="px-2 sm:px-4 py-2">
                       {template.headers.map((header, idx) => (
                         <span key={idx} className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs mr-1">
                           {header.name}
                         </span>
                       ))}
                     </td>
-                    <td className="border border-gray-300 px-2 sm:px-4 py-2">{template.maxRows}</td>
-                    <td className="border border-gray-300 px-2 sm:px-4 py-2">
+                    <td className="px-2 text-center sm:px-4 py-2">{template.maxRows}</td>
+                    <td className="px-2 sm:px-4 py-2">
                       <button
                         onClick={() => handleEditTemplate(template)}
-                        className="bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600"
+                        className="bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600 mr-2"
                       >
                         <FontAwesomeIcon icon={faEdit} />
                       </button>
                       <button
                         onClick={() => openDeleteDialog(template)}
-                        className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 ml-2"
+                        className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600"
                       >
                         <FontAwesomeIcon icon={faTrashAlt} />
                       </button>
                     </td>
-                    <td className="border border-gray-300 px-2 sm:px-4 py-2">
+                    <td className="px-2 sm:px-4 py-2">
                       <button
-                        onClick={() => toggleExpand(template.templatename)}
-                        className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600"
+                        onClick={() => generateExcel(template.headers, template.templatename)}
+                        className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600"
                       >
-                        {isExpanded[template.templatename] ? "ซ่อนรายละเอียด" : "ดูรายละเอียด"}
+                        <FontAwesomeIcon icon={faFileArrowDown} />
                       </button>
                     </td>
                   </tr>
 
                   {isExpanded[template.templatename] && (
                     <tr>
-                      <td colSpan="5" className="border border-gray-300 px-8 py-4 bg-gray-50">
+                      <td colSpan="6" className="px-8 py-4 bg-gray-50">
                         <div className="flex flex-row justify-between">
-
                           <div>
                             <h3 className="text-gray-700 font-semibold">เงื่อนไขในการเช็ค</h3>
-                            <ul className="list-disc pl-5 text-left text-gray-600">
+                            <ul className="list-disc pl-5 text-gray-600">
                               {template.headers.map((header, idx) => (
                                 <li key={idx} className="mt-1">
-                                  <strong>หัวข้อ {header.name}:</strong> ตรวจสอบโดยใช้เงื่อนไข {header.condition || "ไม่มีเงื่อนไข"}
+                                  <strong>หัวข้อ {header.name}:</strong> {header.condition || "ไม่มีเงื่อนไข"}
                                 </li>
                               ))}
                             </ul>
                           </div>
-
                           <div>
                             <h3 className="text-gray-700 font-semibold">เงื่อนไขในการคำนวณ</h3>
-                            <ul className="list-disc pl-5 text-left text-gray-600">
-                              {template.condition?.calculations?.map((calc, idx) => (
-                                <li key={idx} className="mt-1">
-                                  {calc.result} = {calc.addend} {calc.type} {calc.operand}
-                                </li>
-                              )) || <li>ไม่มีเงื่อนไขการคำนวณ</li>}
+                            <ul className="list-disc pl-5 text-gray-600">
+                              {template.condition?.calculations?.length > 0 ? (
+                                template.condition.calculations.map((calc, idx) => (
+                                  <li key={idx} className="mt-1">
+                                    {calc.result} = {calc.addend} {calc.type} {calc.operand}
+                                  </li>
+                                ))
+                              ) : (
+                                <li>ไม่มีเงื่อนไขการคำนวณ</li>
+                              )}
                             </ul>
                           </div>
-
                           <div>
                             <h3 className="text-gray-700 font-semibold">เงื่อนไขความสัมพันธ์ของคอลัมน์</h3>
-                            <ul className="list-disc pl-5 text-left text-gray-600">
-                              {template.condition?.relations?.map((rel, idx) => (
-                                <li key={idx} className="mt-1">
-                                  <strong>{rel.column1}</strong> ต้อง <strong>{rel.condition}</strong> กับ <strong>{rel.column2}</strong>
-                                </li>
-                              )) || <li>ไม่มีเงื่อนไขความสัมพันธ์</li>}
+                            <ul className="list-disc pl-5 text-gray-600">
+                              {template.condition?.relations?.length > 0 ? (
+                                template.condition.relations.map((rel, idx) => (
+                                  <li key={idx} className="mt-1">
+                                    <strong>{rel.column1}</strong> ต้อง <strong>{rel.condition}</strong> กับ <strong>{rel.column2}</strong>
+                                  </li>
+                                ))
+                              ) : (
+                                <li>ไม่มีเงื่อนไขความสัมพันธ์</li>
+                              )}
                             </ul>
                           </div>
-
                         </div>
                       </td>
                     </tr>
@@ -343,36 +396,38 @@ const TemplateManagement = () => {
             </div>
           )}
         </div>
-      )}
+      )
+      }
 
-      {isLoadDialogOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded-md shadow-md">
-            <h2 className="text-lg font-semibold mb-4">กรอก Token ของคุณ</h2>
-            <input
-              type="text"
-              value={newUserToken}
-              onChange={(e) => setNewUserToken(e.target.value)}
-              className="border px-3 py-2 w-full rounded-md"
-              placeholder="กรอก User Token เดิม"
-            />
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                onClick={() => setIsLoadDialogOpen(false)}
-                className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500"
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={handleConfirmLoadToken}
-                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-              >
-                ยืนยัน
-              </button>
+      {
+        isLoadDialogOpen && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white p-6 rounded-md shadow-md">
+              <h2 className="text-lg font-semibold mb-4">กรอก Token ของคุณ</h2>
+              <input
+                type="text"
+                value={newUserToken}
+                onChange={(e) => setNewUserToken(e.target.value)}
+                className="border px-3 py-2 w-full rounded-md"
+                placeholder="กรอก User Token เดิม"
+              />
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  onClick={() => setIsLoadDialogOpen(false)}
+                  className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={handleConfirmLoadToken}
+                  className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+                >
+                  ยืนยัน
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )
+        )
       }
       {
         isLoadToken && (
