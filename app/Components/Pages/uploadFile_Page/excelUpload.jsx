@@ -4,7 +4,6 @@ import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import { downloadErrorReport } from './excelErrorReport';
 import { fetchTemplates } from '@/app/Service/templateService';
-import { motion, AnimatePresence } from "framer-motion";
 
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
@@ -242,26 +241,14 @@ const ExcelUpload = () => {
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
 
             <div className="max-w-md w-full mx-auto p-6 bg-white shadow-lg rounded-lg kanit-regular">
-                <AnimatePresence>
-                    {isLoadingDialog && (
-                        <motion.div
-                            className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                        >
-                            <motion.div
-                                className="bg-white p-6 rounded-lg flex flex-col items-center"
-                                initial={{ scale: 0.8 }}
-                                animate={{ scale: 1 }}
-                                exit={{ scale: 0.8 }}
-                            >
-                                <div className="w-12 h-12 border-4 border-blue-500 border-solid border-t-transparent rounded-full animate-spin"></div>
-                                <h3 className="text-xl font-semibold mt-4">กำลังตรวจสอบข้อมูลในไฟล์...</h3>
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                {isLoadingDialog && (
+                    <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+                        <div className="bg-white p-6 rounded-lg flex flex-col items-center">
+                            <h3 className="text-xl font-semibold mb-4">กำลังตรวจสอบข้อมูลในไฟล์...</h3>
+                            <div className="w-10 h-10 border-4 border-blue-500 border-solid border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    </div>
+                )}
 
                 <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">📂 ตรวจสอบข้อมูลไฟล์ Excel</h2>
 
