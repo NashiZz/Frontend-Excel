@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Frontend-Excel
 
-## Getting Started
+## คำอธิบายโครงการ
+โครงการ **Frontend-Excel** เป็นระบบ Frontend ที่พัฒนาด้วย **Next.js** และ **Tailwind CSS** เพื่อช่วยให้ผู้ใช้สามารถสร้างและจัดการเทมเพลตที่ใช้สำหรับตรวจสอบข้อมูลในไฟล์ Excel ได้
 
-First, run the development server:
+## เทคโนโลยีที่ใช้
+- **Next.js** - ใช้เป็น Framework หลักในการพัฒนา Frontend
+- **Tailwind CSS** - ใช้สำหรับจัดการสไตล์ของ UI
+- **Axios** - ใช้สำหรับเรียก API ไปยัง Backend
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## ฟีเจอร์หลัก
+1. **สร้างเทมเพลตตรวจสอบข้อมูล**
+   - สามารถสร้างหัวข้อ และกำหนดเงื่อนไขสำหรับตรวจสอบข้อมูลในไฟล์ Excel
+   - เพิ่มตัวเลือกเงื่อนไขเพิ่มเติมได้ 2 ประเภท:
+     1. **การคำนวณ** - ตรวจสอบข้อมูลด้วยสูตรคำนวณ
+     2. **ความสัมพันธ์ของคอลัมน์** - ตรวจสอบข้อมูลโดยเปรียบเทียบคอลัมน์ต่างๆ
+
+2. **จัดการเทมเพลต**
+   - ดูข้อมูลเทมเพลตที่สร้างขึ้น แยกตามผู้ใช้โดยใช้ **User Token**
+   - ใช้ **User Token** เพื่อดึงข้อมูลเทมเพลตเดิมไปใช้งานบนเครื่องอื่นได้
+
+3. **อัปโหลดไฟล์และตรวจสอบข้อมูล**
+   - เลือกเทมเพลตที่สร้างไว้เพื่อตรวจสอบข้อมูลในไฟล์ Excel
+   - ระบบจะตรวจสอบเงื่อนไขของเทมเพลตก่อนส่งไปประมวลผลใน Backend
+   - หากพบข้อผิดพลาด ระบบจะส่งข้อมูลที่ผิดพลาดกลับมา พร้อมแจ้ง **row** และ **column** ที่ผิดพลาด
+   - ผู้ใช้สามารถกดปุ่มเพื่อดาวน์โหลดไฟล์ที่มีการไฮไลท์ส่วนที่ผิดพลาด
+
+## การติดตั้งและใช้งาน
+### 1. Clone Repository
+```sh
+git clone https://github.com/NashiZz/Frontend-Excel.git
+cd Frontend-Excel
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. ติดตั้ง Dependencies
+```sh
+npm install
+```
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### 3. รันโปรเจกต์
+```sh
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ผู้พัฒนา
+- **Nashi**
+- **Deptt**
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
