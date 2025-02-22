@@ -203,12 +203,19 @@ const ExcelUpload = () => {
         const templateNames = selectedTemplateData.headers.map(header => header.name);
         const calculations = selectedTemplateData.condition?.calculations || [];
         const relations = selectedTemplateData.condition?.relations || [];
+        const compares = selectedTemplateData.condition?.compares || [];
 
         const calculationDetails = calculations.map(calculation => [
             calculation.type,
             calculation.addend,
             calculation.operand,
             calculation.result
+        ]);
+
+        const compareDetails = compares.map(compare => [
+            compare.type,
+            compare.addend,
+            compare.operand
         ]);
 
         const relationDetails = relations.map(relation => [
@@ -237,7 +244,7 @@ const ExcelUpload = () => {
         setIsLoadingDialog(true);
 
         try {
-            await uploadExcelFileWithTemplate(file, conditions, calculationDetails, relationDetails, setErrors, setSuccessMessage);
+            await uploadExcelFileWithTemplate(file, conditions, calculationDetails, relationDetails, compareDetails, setErrors, setSuccessMessage);
             toast.success('🎉 อัปโหลดไฟล์สำเร็จ!', { position: 'bottom-right', autoClose: 3000 });
         } catch (error) {
             console.error('Error uploading file:', error);
