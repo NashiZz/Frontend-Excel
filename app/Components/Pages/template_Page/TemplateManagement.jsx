@@ -338,6 +338,20 @@ const TemplateManagement = () => {
                             </ul>
                           </div>
                           <div>
+                            <h3 className="text-gray-700 font-semibold">เงื่อนไขในการเปรียบเทียบ</h3>
+                            <ul className="list-disc pl-5 text-gray-600">
+                              {template.condition?.compares?.length > 0 ? (
+                                template.condition.compares?.map((calc, idx) => (
+                                  <li key={idx} className="mt-1">
+                                    {calc.addend} {calc.type} {calc.operand}
+                                  </li>
+                                ))
+                              ) : (
+                                <li>ไม่มีเงื่อนไขการเปรียบเทียบ</li>
+                              )}
+                            </ul>
+                          </div>
+                          <div>
                             <h3 className="text-gray-700 font-semibold">เงื่อนไขความสัมพันธ์ของคอลัมน์</h3>
                             <ul className="list-disc pl-5 text-gray-600">
                               {template.condition?.relations?.length > 0 ? (

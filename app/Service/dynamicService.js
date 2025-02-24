@@ -59,12 +59,13 @@ export const uploadExcelFileWithHeader = async (file, header, setErrors, setSucc
     }
 };
 
-export const uploadExcelFileWithTemplate = async (file, condition, calculater, relation, setErrors, setSuccessMessage) => {
+export const uploadExcelFileWithTemplate = async (file, condition, calculater, relation, compare, setErrors, setSuccessMessage) => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("condition", JSON.stringify(condition));
     formData.append("calculater", JSON.stringify(calculater));
     formData.append("relation", JSON.stringify(relation));
+    formData.append("compare", JSON.stringify(compare));
 
     try {
         const response = await axios.post(`${API_BASE_URL}/excel/template`, formData, {

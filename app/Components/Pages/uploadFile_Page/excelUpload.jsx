@@ -26,20 +26,35 @@ const ExcelUpload = () => {
             if (!userToken) {
                 return;
             }
-
-            const data = await fetchTemplates(userToken);
-            if (data && data.templates) {
-                if (data.templates.length === 0) {
-                    console.log("ไม่พบเทมเพลต, กรุณาสร้างเทมเพลตก่อน");
-                    setTemplates([]);
+    
+            try {
+                const data = await fetchTemplates(userToken);
+                
+                if (data && data.templates) {
+                    if (data.templates.length === 0) {
+                        toast.warning("ไม่พบเทมเพลต, กรุณาสร้างเทมเพลตก่อน");
+                        setTemplates([]);
+                    } else {
+                        setTemplates(data.templates);
+                    }
                 } else {
-                    setTemplates(data.templates);
+                    toast.error("ไม่สามารถโหลดข้อมูลเทมเพลตได้ กรุณาไปสร้างเทมเพลตก่อน");
+                }
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในการโหลดเทมเพลต:", error);
+    
+                if (error.response) {
+                    toast.error(`เกิดข้อผิดพลาด: ${error.response.status} - ${error.response.data.message}`);
+                } else if (error.request) {
+                    toast.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง");
+                } else {
+                    toast.error("เกิดข้อผิดพลาดที่ไม่คาดคิด กรุณาลองใหม่อีกครั้ง");
                 }
             }
         };
-
+    
         fetchTemplatesData();
-    }, [userToken]);
+    }, [userToken]);    
 
     useEffect(() => {
         if (selectedTemplate) {
@@ -188,12 +203,19 @@ const ExcelUpload = () => {
         const templateNames = selectedTemplateData.headers.map(header => header.name);
         const calculations = selectedTemplateData.condition?.calculations || [];
         const relations = selectedTemplateData.condition?.relations || [];
+        const compares = selectedTemplateData.condition?.compares || [];
 
         const calculationDetails = calculations.map(calculation => [
             calculation.type,
             calculation.addend,
             calculation.operand,
             calculation.result
+        ]);
+
+        const compareDetails = compares.map(compare => [
+            compare.type,
+            compare.addend,
+            compare.operand
         ]);
 
         const relationDetails = relations.map(relation => [
@@ -222,7 +244,7 @@ const ExcelUpload = () => {
         setIsLoadingDialog(true);
 
         try {
-            await uploadExcelFileWithTemplate(file, conditions, calculationDetails, relationDetails, setErrors, setSuccessMessage);
+            await uploadExcelFileWithTemplate(file, conditions, calculationDetails, relationDetails, compareDetails, setErrors, setSuccessMessage);
             toast.success('🎉 อัปโหลดไฟล์สำเร็จ!', { position: 'bottom-right', autoClose: 3000 });
         } catch (error) {
             console.error('Error uploading file:', error);

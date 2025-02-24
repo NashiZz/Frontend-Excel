@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlusCircle, faFileAlt, faArrowUp, faArrowDown} from '@fortawesome/free-solid-svg-icons';
+import { faPlusCircle, faFileAlt, faArrowUp, faArrowDown } from '@fortawesome/free-solid-svg-icons';
 import { updateTemplate } from "@/app/Service/templateService";
 
 const EditTemplate = () => {
@@ -15,6 +15,9 @@ const EditTemplate = () => {
     const [maxRows, setMaxRows] = useState(10);
     const [calculationType, setCalculationType] = useState('');
     const [calculationCondition, setCalculationCondition] = useState([]);
+    const [isGreaterLessThanDialogOpen, setIsGreaterLessThanDialogOpen] = useState(false);
+    const [compareType, setCompareType] = useState('');
+    const [greaterLessCondition, setGreaterLessCondition] = useState([]);
     const [relationCondition, setRelationCondition] = useState([]);
     const [expandedHeader, setExpandedHeader] = useState(null);
     const [selectedHeader, setSelectedHeader] = useState(null);
@@ -32,6 +35,8 @@ const EditTemplate = () => {
         { value: "email", label: "ตรวจสอบอีเมล" },
         { value: "phone", label: "ตรวจสอบเบอร์โทร" },
         { value: "address", label: "ตรวจสอบที่อยู่" },
+        { value: "provice", label: "ตรวจสอบจังหวัด" },
+        { value: "district", label: "ตรวจสอบทอำเภอ" },
         { value: "citizenid", label: "ตรวจสอบบัตรประชาชน" },
         { value: "age", label: "ตรวจสอบอายุ" },
         { value: "gender", label: "ตรวจสอบเพศ" },
@@ -60,6 +65,13 @@ const EditTemplate = () => {
             type: calculation.type,
             operand: calculation.operand,
             result: calculation.result
+        })));
+
+        const compares = templateData.condition?.compares || [];
+        setGreaterLessCondition(compares.map(compare => ({
+            addend: compare.addend,
+            type: compare.type,
+            operand: compare.operand,
         })));
 
         setRelationCondition(templateData.condition?.relations || []);
@@ -105,6 +117,8 @@ const EditTemplate = () => {
         setIsOptionDialogOpen(false);
         if (option === "calculation") {
             setIsCalculationDialogOpen(true);
+        } else if (option === "greaterless") {
+            setIsGreaterLessThanDialogOpen(true);
         } else if (option === "column-condition") {
             setIsColumnConditionDialogOpen(true);
         }
@@ -123,6 +137,62 @@ const EditTemplate = () => {
             ...prevState,
             [columnType]: prevState[columnType] === columnName ? null : columnName,
         }));
+    };
+
+    const handleGraterColumnSelect = (columnName, columnType) => {
+        if (
+            (columnType === 'addend' && (selectedColumns.operand === columnName || selectedColumns.result === columnName)) ||
+            (columnType === 'operand' && (selectedColumns.addend === columnName || selectedColumns.result === columnName))
+        ) {
+            return;
+        }
+
+        setSelectedColumns((prevState) => ({
+            ...prevState,
+            [columnType]: prevState[columnType] === columnName ? null : columnName,
+        }));
+    };
+
+    const handleCompareTypeChange = (e) => {
+        setCompareType(e.target.value);
+    };
+
+    const addGreaterLessCondition = () => {
+        if (!compareType || !selectedColumns.addend || !selectedColumns.operand) {
+            alert("กรุณากรอกค่าทั้งหมด");
+            return;
+        }
+
+        const newGreaterLess = {
+            type: compareType,
+            addend: selectedColumns.addend,
+            operand: selectedColumns.operand,
+        };
+
+        const isDuplicate = greaterLessCondition.some(
+            condition =>
+                condition.addend === newGreaterLess.addend &&
+                condition.type === newGreaterLess.type &&
+                condition.operand === newGreaterLessn.operand
+        );
+
+        if (isDuplicate) {
+            alert("เงื่อนไขนี้ถูกเพิ่มไปแล้ว");
+            return;
+        }
+
+        setGreaterLessCondition(prevGreaterLess => [...prevGreaterLess, newGreaterLess]);
+
+        setCompareType('');
+        setSelectedColumns({
+            addend: '',
+            operand: '',
+        });
+    };
+
+    const removeCompare = (index) => {
+        const updatedConditions = greaterLessCondition.filter((_, i) => i !== index);
+        setGreaterLessCondition(updatedConditions);
     };
 
     const handleCalculationTypeChange = (e) => {
@@ -229,7 +299,8 @@ const EditTemplate = () => {
             headers,
             condition: {
                 calculations: calculationCondition,
-                relations: relationCondition,
+                compares: greaterLessCondition,
+                relations: relationCondition
             },
             maxRows,
         };
@@ -358,7 +429,7 @@ const EditTemplate = () => {
                                             <button
                                                 type="button"
                                                 className="text-blue-500 px-2"
-                                                onClick={() => moveHeader(index, -1)} 
+                                                onClick={() => moveHeader(index, -1)}
                                                 disabled={index === 0}
                                             >
                                                 <FontAwesomeIcon icon={faArrowUp} /> สลับขึ้น
@@ -366,7 +437,7 @@ const EditTemplate = () => {
                                             <button
                                                 type="button"
                                                 className="text-blue-500"
-                                                onClick={() => moveHeader(index, 1)} 
+                                                onClick={() => moveHeader(index, 1)}
                                                 disabled={index === headers.length - 1}
                                             >
                                                 <FontAwesomeIcon icon={faArrowDown} /> สลับลง
@@ -432,6 +503,25 @@ const EditTemplate = () => {
                             </div>
                         )}
 
+                        {greaterLessCondition && greaterLessCondition.length > 0 && (
+                            <div className="mt-4">
+                                <h4 className="text-lg font-semibold">เงื่อนไขการเปรียเทียบ:</h4>
+                                <ul className="list-disc pl-5 text-sm md:text-base">
+                                    {greaterLessCondition.map((condition, index) => (
+                                        <li key={index} className="mt-1 flex justify-between items-center">
+                                            {`${condition.addend} ${condition.type} ${condition.operand}`}
+                                            <button
+                                                onClick={() => removeCompare(index)}
+                                                className="text-red-500 ml-2"
+                                            >
+                                                ลบ
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
                         {relationCondition && relationCondition.length > 0 && (
                             <div className="mt-4">
                                 <h4 className="text-lg font-semibold">เงื่อนไขความสัมพันธ์ของคอลัมน์:</h4>
@@ -473,6 +563,17 @@ const EditTemplate = () => {
                                     disabled={balanceColumns.length < 3}
                                 >
                                     ฟังก์ชันการคำนวณ
+                                </button>
+
+                                <button className={`w-full py-2 px-4 rounded-md mb-2 transition 
+                                ${balanceColumns.length >= 2
+                                        ? "bg-blue-500 text-white hover:bg-blue-600"
+                                        : "bg-gray-400 text-gray-700 cursor-not-allowed"
+                                    }`}
+                                    onClick={() => handleSelectOption("greaterless")}
+                                    disabled={balanceColumns.length < 2}
+                                >
+                                    ฟังก์ชันการเปรียบเทียบ
                                 </button>
 
                                 <button
@@ -603,6 +704,113 @@ const EditTemplate = () => {
                                     </button>
                                     <button
                                         onClick={closeOptionDialog}
+                                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                                    >
+                                        ปิด
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {isGreaterLessThanDialogOpen && (
+                    <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+                        <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-xl md:max-w-2xl overflow-y-auto max-h-[80vh]">
+                            <h3 className="text-xl font-semibold mb-4 text-center">
+                                เลือกเงื่อนไขสำหรับการเปรียบเทียบ
+                            </h3>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        เลือกคอลัมน์ที่จะเปรียบเทียบ
+                                    </label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                        {headers
+                                            .filter((header) => header.condition === "balance")
+                                            .map((header) => (
+                                                <div key={header.name} className="flex flex-col gap-2 p-2 bg-gray-100 rounded-md shadow-md">
+                                                    <h4 className="text-center font-medium text-gray-700">{header.name}</h4>
+
+                                                    <button
+                                                        onClick={() => handleGraterColumnSelect(header.name, 'addend')}
+                                                        className={`px-4 py-2 rounded-md shadow-sm border 
+                                                    ${selectedColumns.addend === header.name
+                                                                ? 'bg-blue-600 text-white'
+                                                                : 'bg-white text-gray-700 hover:bg-blue-200'}
+                                                    transition`}
+                                                    >
+                                                        ตัวตั้ง (Addend)
+                                                    </button>
+
+                                                    <button
+                                                        onClick={() => handleGraterColumnSelect(header.name, 'operand')}
+                                                        className={`px-4 py-2 rounded-md shadow-sm border 
+                                                    ${selectedColumns.operand === header.name
+                                                                ? 'bg-yellow-600 text-white'
+                                                                : 'bg-white text-gray-700 hover:bg-yellow-200'}
+                                                    transition`}
+                                                    >
+                                                        ตัวกระทำ (Operand)
+                                                    </button>
+                                                </div>
+                                            ))}
+                                    </div>
+
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">เลือกประเภทการคำนวณ</label>
+                                    <select
+                                        value={compareType}
+                                        onChange={handleCompareTypeChange}
+                                        className="w-full border border-gray-300 rounded-md p-2"
+                                    >
+                                        <option value="">เลือกประเภทการเปรียบเทียบ</option>
+                                        <option value=">">มากกว่า</option>
+                                        <option value="<">น้อยกว่า</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">เงื่อนไขการคำนวณ</label>
+                                    <input
+                                        type="text"
+                                        value={`${selectedColumns.addend} ${compareType} ${selectedColumns.operand}`}
+                                        onChange={(e) => setCalculationCondition(e.target.value)}
+                                        className="w-full border border-gray-300 rounded-md p-2"
+                                        placeholder={`เช่น ${selectedColumns.addend} ${compareType} ${selectedColumns.operand}`}
+                                    />
+                                    {greaterLessCondition.length > 0 && (
+                                        <div className="mt-4 mb-6">
+                                            <h4 className="text-lg font-semibold">เงื่อนไขที่เพิ่มเข้ามา:</h4>
+                                            <ul className="list-disc pl-5">
+                                                {greaterLessCondition.map((condition, index) => (
+                                                    <li key={index} className="flex justify-between items-center">
+                                                        {`${condition.addend} ${condition.type} ${condition.operand}`}
+                                                        <button
+                                                            onClick={() => removeCompare(index)}
+                                                            className="ml-2 text-red-600 hover:text-red-800"
+                                                        >
+                                                            ลบ
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex justify-between mt-4">
+                                    <button
+                                        onClick={addGreaterLessCondition}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                    >
+                                        เพิ่มเงื่อนไข
+                                    </button>
+                                    <button
+                                        onClick={() => setIsGreaterLessThanDialogOpen(false)}
                                         className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
                                     >
                                         ปิด

@@ -31,7 +31,6 @@ export const fetchTemplatesName = async (userToken) => {
   }
 };
 
-
 export const fetchTemplates = async (userToken) => {
   try {
     let response = await axios.get(`${API_URL}/${userToken}`);
