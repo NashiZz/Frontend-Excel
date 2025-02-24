@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import { HashRouter as Router, Route, Routes } from "react-router-dom";
-import RootPage from "./app/Components/pages/RootPage";
-import ExcelUpload from "./app/Components/pages/uploadFile_Page/excelUpload";
-import TemplateManagement from "./app/Components/pages/template_Page/TemplateManagement";
-import CreateTemplate from "./app/Components/pages/template_Page/CreateTemplate";
-import EditTemplate from "./app/Components/pages/template_Page/EditTemplate";
+import RootPage from "./Components/pages/RootPage";
+import ExcelUpload from "./Components/pages/uploadFile_Page/excelUpload";
+import TemplateManagement from "./Components/pages/template_Page/TemplateManagement";
+import CreateTemplate from "./Components/pages/template_Page/CreateTemplate";
+import EditTemplate from "./Components/pages/template_Page/EditTemplate";
 
 const AppRouter = () => {
     const [isClient, setIsClient] = useState(false);
