@@ -209,6 +209,11 @@ const ExcelUpload = () => {
             calculation.result
         ]);
 
+        // const calculationDetails = calculations.map(calculation => [
+        //     calculation.expression,
+        //     calculation.result
+        // ]);     
+        
         const compareDetails = compares.map(compare => [
             compare.type,
             compare.addend,

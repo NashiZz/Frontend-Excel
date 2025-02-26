@@ -16,6 +16,7 @@ const TemplateManagement = () => {
   const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [showToken, setShowToken] = useState(false);
@@ -107,6 +108,52 @@ const TemplateManagement = () => {
     }
   };
 
+  const handleDuplicateTemplate = async (template) => {
+
+    const newTemplate = {
+      userToken: userToken,
+      templatename: `${template.templatename}_copy`, // เพิ่ม "_copy" ต่อท้ายชื่อ
+      headers: template.headers,
+      maxRows: template.maxRows,
+      condition: {
+        calculations: template.condition?.calculations || [],
+        compares: template.condition?.compares || [],
+        relations: template.condition?.relations || []
+      }
+    };
+
+    // อัปเดต LocalStorage
+    const existingTemplates = JSON.parse(localStorage.getItem("templates")) || [];
+    existingTemplates.push(newTemplate);
+    localStorage.setItem("templates", JSON.stringify(existingTemplates));
+
+    console.log("Sending duplicated template:", newTemplate);
+    setIsSaving(true);
+
+    try {
+      const response = await fetch("http://localhost:8080/api/save/templates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newTemplate),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        alert("คัดลอกและบันทึกข้อมูลเรียบร้อยแล้ว!");
+        setTemplates((prevTemplates) => [...prevTemplates, newTemplate]); 
+      } else {
+        alert(`Error: ${data.message}`);
+      }
+    } catch (error) {
+      console.error("Error saving duplicated template:", error);
+      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const openDeleteDialog = (template) => {
     setTemplateToDelete(template);
     setShowDeleteDialog(true);
@@ -137,6 +184,13 @@ const TemplateManagement = () => {
   const handleAddTemplate = () => {
     navigate("/createtemplate");
   };
+
+  <button
+    onClick={() => handleDuplicateTemplate(template)}
+    className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600"
+  >
+    <FontAwesomeIcon icon={faCopy} />
+  </button>
 
   const handleEditTemplate = (template) => {
     setCurrentTemplate(template);
@@ -301,9 +355,15 @@ const TemplateManagement = () => {
                     <td className="px-2 sm:px-4 py-2">
                       <button
                         onClick={() => generateExcel(template.headers, template.templatename)}
-                        className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600"
+                        className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 mr-2"
                       >
                         <FontAwesomeIcon icon={faFileArrowDown} />
+                      </button>
+                      <button
+                        onClick={() => handleDuplicateTemplate(template)}
+                        className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600"
+                      >
+                        <FontAwesomeIcon icon={faCopy} />
                       </button>
                     </td>
                   </tr>
