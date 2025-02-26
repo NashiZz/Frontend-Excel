@@ -182,8 +182,8 @@ const TemplateManagement = () => {
         </h1>
       </div>
 
-      <div className="flex mb-2 justify-between">
-        <div className="bg-white shadow-md p-4 rounded-lg flex items-center justify-between w-2/3">
+      <div className="flex flex-col sm:flex-row mb-2 justify-between">
+        <div className="bg-white shadow-md p-4 rounded-lg flex items-center justify-between w-full sm:w-2/3">
           <p className="text-gray-600 font-medium">
             Token ของคุณ:{" "}
             <span className="text-blue-600 break-all pr-3">
@@ -218,17 +218,16 @@ const TemplateManagement = () => {
             </div>
           )}
         </div>
-        <div className="flex gap-4 mt-6">
+        <div className="flex flex-col sm:flex-row gap-4 mt-6 w-full sm:w-auto">
           <button
             onClick={handleLoadOldTemplate}
-            className="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition flex items-center"
+            className="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition flex items-center w-full sm:w-auto"
           >
             <FontAwesomeIcon icon={faCloudArrowDown} className="mr-2" />
             โหลด Template เดิม
           </button>
           <button
-            className={`bg-green-500 text-white px-5 py-2 rounded-lg flex items-center ${!userToken ? "opacity-50 cursor-not-allowed" : "hover:bg-green-600"
-              }`}
+            className={`bg-green-500 text-white px-5 py-2 rounded-lg flex items-center w-full sm:w-auto ${!userToken ? "opacity-50 cursor-not-allowed" : "hover:bg-green-600"}`}
             onClick={userToken ? handleAddTemplate : undefined}
             disabled={!userToken}
           >
@@ -312,8 +311,8 @@ const TemplateManagement = () => {
                   {isExpanded[template.templatename] && (
                     <tr>
                       <td colSpan="6" className="px-8 py-4 bg-gray-50">
-                        <div className="flex flex-row justify-between">
-                          <div>
+                        <div className="flex flex-col sm:flex-row justify-between">
+                          <div className="sm:w-1/3">
                             <h3 className="text-gray-700 font-semibold">เงื่อนไขในการเช็ค</h3>
                             <ul className="list-disc pl-5 text-gray-600">
                               {template.headers.map((header, idx) => (
@@ -323,7 +322,7 @@ const TemplateManagement = () => {
                               ))}
                             </ul>
                           </div>
-                          <div>
+                          <div className="sm:w-1/3">
                             <h3 className="text-gray-700 font-semibold">เงื่อนไขในการคำนวณ</h3>
                             <ul className="list-disc pl-5 text-gray-600">
                               {template.condition?.calculations?.length > 0 ? (
@@ -337,7 +336,7 @@ const TemplateManagement = () => {
                               )}
                             </ul>
                           </div>
-                          <div>
+                          <div className="sm:w-1/3">
                             <h3 className="text-gray-700 font-semibold">เงื่อนไขในการเปรียบเทียบ</h3>
                             <ul className="list-disc pl-5 text-gray-600">
                               {template.condition?.compares?.length > 0 ? (
@@ -351,7 +350,7 @@ const TemplateManagement = () => {
                               )}
                             </ul>
                           </div>
-                          <div>
+                          <div className="sm:w-1/3">
                             <h3 className="text-gray-700 font-semibold">เงื่อนไขความสัมพันธ์ของคอลัมน์</h3>
                             <ul className="list-disc pl-5 text-gray-600">
                               {template.condition?.relations?.length > 0 ? (

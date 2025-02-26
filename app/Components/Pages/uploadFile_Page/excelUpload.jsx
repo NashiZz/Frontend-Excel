@@ -32,13 +32,10 @@ const ExcelUpload = () => {
                 
                 if (data && data.templates) {
                     if (data.templates.length === 0) {
-                        toast.warning("ไม่พบเทมเพลต, กรุณาสร้างเทมเพลตก่อน");
                         setTemplates([]);
                     } else {
                         setTemplates(data.templates);
                     }
-                } else {
-                    toast.error("ไม่สามารถโหลดข้อมูลเทมเพลตได้ กรุณาไปสร้างเทมเพลตก่อน");
                 }
             } catch (error) {
                 console.error("เกิดข้อผิดพลาดในการโหลดเทมเพลต:", error);

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = "https://backend-excel-cagd.onrender.com/api/save/templates";
+const API_URL = "http://localhost:8080/api/save/templates";
 
 export const updateUserTokenInBackend = async (userToken) => {
   try {
