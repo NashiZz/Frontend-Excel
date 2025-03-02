@@ -15,6 +15,9 @@ const EditTemplate = () => {
     const [maxRows, setMaxRows] = useState(10);
     const [calculationType, setCalculationType] = useState('');
     const [calculationCondition, setCalculationCondition] = useState([]);
+    const [calculationExpression, setCalculationExpression] = useState([]);
+    const [resultColumn, setResultColumn] = useState("");
+    const [isColumnSelected, setIsColumnSelected] = useState(false);
     const [isGreaterLessThanDialogOpen, setIsGreaterLessThanDialogOpen] = useState(false);
     const [compareType, setCompareType] = useState('');
     const [greaterLessCondition, setGreaterLessCondition] = useState([]);
@@ -61,9 +64,7 @@ const EditTemplate = () => {
 
         const calculations = templateData.condition?.calculations || [];
         setCalculationCondition(calculations.map(calculation => ({
-            addend: calculation.addend,
-            type: calculation.type,
-            operand: calculation.operand,
+            expression: calculation.expression,
             result: calculation.result
         })));
 
@@ -100,7 +101,9 @@ const EditTemplate = () => {
         const newHeaders = [...headers];
         const [removed] = newHeaders.splice(index, 1);
         newHeaders.splice(index + direction, 0, removed);
+
         setHeaders(newHeaders);
+        setExpandedHeader(index + direction);
     };
 
     const openOptionDialog = (header) => {
@@ -195,6 +198,57 @@ const EditTemplate = () => {
         setGreaterLessCondition(updatedConditions);
     };
 
+    const handleAddToExpression = (value, type) => {
+        if (type === "column") {
+            if (calculationExpression.some(item => item.value === value) || resultColumn === value) {
+                alert("คอลัมน์นี้ถูกเลือกไปแล้ว ไม่สามารถเลือกซ้ำได้");
+                return;
+            }
+
+            if (calculationExpression.length > 0 && calculationExpression[calculationExpression.length - 1].type === "column") {
+                alert("ต้องเลือกตัวดำเนินการก่อนเลือกคอลัมน์ใหม่");
+                return;
+            }
+
+            setCalculationExpression((prev) => [...prev, { value, type }]);
+            setIsColumnSelected(true);
+        } else if (type === "operator") {
+            if (calculationExpression.length === 0 || calculationExpression[calculationExpression.length - 1].type === "operator") {
+                alert("ต้องเลือกคอลัมน์ก่อนเลือกตัวดำเนินการ");
+                return;
+            }
+            setCalculationExpression((prev) => [...prev, { value, type }]);
+        }
+    };
+
+    const handleClearExpression = () => {
+        setCalculationExpression([]);
+        setResultColumn("");
+        setIsColumnSelected(false);
+    };
+
+    const addComplexCondition = () => {
+        if (calculationExpression.length < 3 || !resultColumn) {
+            alert("กรุณากรอกสมการให้ครบถ้วน");
+            return;
+        }
+
+        if (calculationExpression[calculationExpression.length - 1].type !== "column") {
+            alert("สมการต้องลงท้ายด้วยคอลัมน์");
+            return;
+        }
+
+        const newCondition = {
+            expression: calculationExpression.map(item => item.value),
+            result: resultColumn,
+        };
+
+        setCalculationCondition((prev) => [...prev, newCondition]);
+        console.log(calculationCondition);
+
+        handleClearExpression();
+    };
+
     const handleCalculationTypeChange = (e) => {
         setCalculationType(e.target.value);
     };
@@ -276,6 +330,10 @@ const EditTemplate = () => {
 
     const handleSecondColumnChange = (e) => {
         setSelectedSecondColumn(e.target.value);
+    };
+
+    const handleRemoveLastExpression = () => {
+        setCalculationExpression(prev => prev.slice(0, -1));
     };
 
     const removeCalculationCondition = (index) => {
@@ -490,7 +548,7 @@ const EditTemplate = () => {
                                 <ul className="list-disc pl-5 text-sm md:text-base">
                                     {calculationCondition.map((condition, index) => (
                                         <li key={index} className="mt-1 flex justify-between items-center">
-                                            {`${condition.addend} ${condition.type} ${condition.operand} = ${condition.result}`}
+                                            {`${condition.expression.join(" ")} = ${condition.result}`}
                                             <button
                                                 onClick={() => removeCalculationCondition(index)}
                                                 className="text-red-500 ml-2"
@@ -594,7 +652,7 @@ const EditTemplate = () => {
                     );
                 })()}
 
-                {isCalculationDialogOpen && (
+                {/* {isCalculationDialogOpen && (
                     <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
                         <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-xl md:max-w-2xl overflow-y-auto max-h-[80vh]">
                             <h3 className="text-xl font-semibold mb-4 text-center">
@@ -705,6 +763,118 @@ const EditTemplate = () => {
                                     <button
                                         onClick={closeOptionDialog}
                                         className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                                    >
+                                        ปิด
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )} */}
+
+                {isCalculationDialogOpen && (
+                    <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50 p-4">
+                        <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-xl md:max-w-2xl max-h-[80vh] overflow-auto">
+                            <h3 className="text-xl font-semibold mb-4 text-center">
+                                เลือกเงื่อนไขสำหรับการคำนวณ
+                            </h3>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        เลือกคอลัมน์ที่จะคำนวณ
+                                    </label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                        {headers
+                                            .filter((header) => header.condition === "balance")
+                                            .map((header) => (
+                                                <button
+                                                    key={header.name}
+                                                    onClick={() => handleAddToExpression(header.name, "column")}
+                                                    className={`px-4 py-2 border rounded-md ${calculationExpression.some(item => item.value === header.name) || resultColumn === header.name
+                                                        ? "bg-gray-400 cursor-not-allowed"
+                                                        : "bg-gray-200"
+                                                        }`}
+                                                    disabled={calculationExpression.some(item => item.value === header.name) || resultColumn === header.name} // Disable ปุ่มที่เลือกแล้ว
+                                                >
+                                                    {header.name}
+                                                </button>
+                                            ))
+                                        }
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        เลือกตัวดำเนินการ
+                                    </label>
+                                    <div className="flex gap-2 flex-wrap">
+                                        {["+", "-", "*", "/"].map((op) => (
+                                            <button
+                                                key={op}
+                                                onClick={() => handleAddToExpression(op, "operator")}
+                                                disabled={calculationExpression.length === 0 || calculationExpression[calculationExpression.length - 1].type === "operator"}
+                                                className={`px-4 py-2 border rounded-md ${calculationExpression.length === 0 || calculationExpression[calculationExpression.length - 1].type === "operator"
+                                                    ? "bg-gray-400 cursor-not-allowed"
+                                                    : "bg-blue-200"
+                                                    }`}
+                                            >
+                                                {op}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <span className="font-bold">เงื่อนไข: </span>
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                        {calculationExpression.map((item, index) => (
+                                            <span key={index} className="inline-flex items-center rounded-md">
+                                                <span>{item.value}</span>
+                                            </span>
+                                        ))}
+                                    </div>
+                                    =
+                                    <select
+                                        value={resultColumn}
+                                        onChange={(e) => setResultColumn(e.target.value)}
+                                        className="border p-1 ml-2 mt-3"
+                                    >
+                                        <option value="">เลือกคอลัมน์ผลลัพธ์</option>
+                                        {headers
+                                            .filter(header => !calculationExpression.some(item => item.value === header.name)) // เงื่อนไขให้แสดงคอลัมน์ที่ยังไม่ถูกเลือก
+                                            .map((header) => (
+                                                <option key={header.name} value={header.name}>
+                                                    {header.name}
+                                                </option>
+                                            ))}
+                                    </select>
+                                </div>
+
+                                <div className="flex flex-col md:flex-row gap-2 mt-4">
+                                    <button
+                                        onClick={addComplexCondition}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md flex-1"
+                                    >
+                                        เพิ่มเงื่อนไข
+                                    </button>
+                                    <button
+                                        onClick={handleClearExpression}
+                                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md flex-1"
+                                    >
+                                        ล้างข้อมูล
+                                    </button>
+                                    <button
+                                        onClick={handleRemoveLastExpression}
+                                        disabled={calculationExpression.length === 0}
+                                        className={`px-4 py-2 rounded-md flex-1 ${calculationExpression.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-red-500 text-white"
+                                            }`}
+                                    >
+                                        ลบทีละตัว
+                                    </button>
+                                    <button
+                                        onClick={() => setIsCalculationDialogOpen(false)}
+                                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md flex-1 hover:bg-gray-300"
                                     >
                                         ปิด
                                     </button>

@@ -202,17 +202,17 @@ const ExcelUpload = () => {
         const relations = selectedTemplateData.condition?.relations || [];
         const compares = selectedTemplateData.condition?.compares || [];
 
-        const calculationDetails = calculations.map(calculation => [
-            calculation.type,
-            calculation.addend,
-            calculation.operand,
-            calculation.result
-        ]);
-
         // const calculationDetails = calculations.map(calculation => [
-        //     calculation.expression,
+        //     calculation.type,
+        //     calculation.addend,
+        //     calculation.operand,
         //     calculation.result
-        // ]);     
+        // ]);
+
+        const calculationDetails = calculations.map(calculation => [
+            calculation.expression,
+            calculation.result
+        ]);     
         
         const compareDetails = compares.map(compare => [
             compare.type,

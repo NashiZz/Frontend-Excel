@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlusCircle, faFileAlt, faTrashAlt } from '@fortawesome/free-solid-svg-icons';
+import { faPlusCircle, faFileAlt, faTrashAlt, faArrowUp, faArrowDown } from '@fortawesome/free-solid-svg-icons';
 
 const CreateTemplate = () => {
     const navigate = useNavigate();
@@ -163,7 +163,7 @@ const CreateTemplate = () => {
 
         setCalculationCondition((prev) => [...prev, newCondition]);
         console.log(calculationCondition);
-        
+
         handleClearExpression();
     };
 
@@ -278,6 +278,15 @@ const CreateTemplate = () => {
         setSelectedCondition('');
     };
 
+    const moveHeader = (index, direction) => {
+        const newHeaders = [...headers];
+        const [removed] = newHeaders.splice(index, 1);
+        newHeaders.splice(index + direction, 0, removed);
+
+        setHeaders(newHeaders);
+        setExpandedHeader(index + direction);
+    };    
+
     const addHeader = () => {
         setHeaders([...headers, { name: "", condition: "" }]);
         setExpandedHeader(headers.length);
@@ -327,6 +336,10 @@ const CreateTemplate = () => {
     const removeRelation = (index) => {
         const updatedConditions = relationCondition.filter((_, i) => i !== index);
         setRelationCondition(updatedConditions);
+    };
+
+    const handleRemoveLastExpression = () => {
+        setCalculationExpression(prev => prev.slice(0, -1));
     };
 
     const handleColumnSelect = (columnName, columnType) => {
@@ -386,6 +399,7 @@ const CreateTemplate = () => {
             setIsDialogOpen(true);
         }
     };
+    
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -540,23 +554,43 @@ const CreateTemplate = () => {
                                             <span title="ตัวอย่าง: example@example.com">ตรวจสอบอีเมล</span>
                                         </p>
 
-                                        <button
-                                            type="button"
-                                            className={`mt-4 px-4 py-2 rounded-md text-white ${header.name.trim() && header.condition
-                                                ? "bg-blue-600 hover:bg-blue-700"
-                                                : "bg-gray-400 cursor-not-allowed"
-                                                }`}
-                                            onClick={() => {
-                                                if (header.name.trim() && header.condition) {
-                                                    setExpandedHeader(null);
-                                                } else {
-                                                    alert("กรุณากรอกข้อมูลให้ครบทั้งสองช่องก่อนบันทึก");
-                                                }
-                                            }}
-                                            disabled={!header.name.trim() || !header.condition}
-                                        >
-                                            บันทึก
-                                        </button>
+                                        <div className="flex justify-between mt-4">
+                                            <button
+                                                type="button"
+                                                className={`mt-4 px-4 py-2 rounded-md text-white ${header.name.trim() && header.condition
+                                                    ? "bg-blue-600 hover:bg-blue-700"
+                                                    : "bg-gray-400 cursor-not-allowed"
+                                                    }`}
+                                                onClick={() => {
+                                                    if (header.name.trim() && header.condition) {
+                                                        setExpandedHeader(null);
+                                                    } else {
+                                                        alert("กรุณากรอกข้อมูลให้ครบทั้งสองช่องก่อนบันทึก");
+                                                    }
+                                                }}
+                                                disabled={!header.name.trim() || !header.condition}
+                                            >
+                                                บันทึก
+                                            </button>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    className="text-blue-500 px-2"
+                                                    onClick={() => moveHeader(index, -1)}
+                                                    disabled={index === 0}
+                                                >
+                                                    <FontAwesomeIcon icon={faArrowUp} /> สลับขึ้น
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="text-blue-500"
+                                                    onClick={() => moveHeader(index, 1)}
+                                                    disabled={index === headers.length - 1}
+                                                >
+                                                    <FontAwesomeIcon icon={faArrowDown} /> สลับลง
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -636,9 +670,9 @@ const CreateTemplate = () => {
                             <div className="mt-4">
                                 <h4 className="text-lg font-semibold">เงื่อนไขการคำนวณ:</h4>
                                 <ul className="list-disc pl-5 text-sm md:text-base">
-                                    {calculationCondition.map((condition, index) => (
+                                    {condition.calculations.map((calc, index) => (
                                         <li key={index} className="mt-1">
-                                            {`${condition.addend} ${condition.type} ${condition.operand} = ${condition.result}`}
+                                            {`${calc.expression.join(" ")} = ${calc.result}`}
                                         </li>
                                     ))}
                                 </ul>
@@ -750,11 +784,11 @@ const CreateTemplate = () => {
                 );
             })()}
 
-            {/* {isCalculationDialogOpen && (
-                <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-xl md:max-w-2xl overflow-y-auto max-h-[80vh]">
+            {isCalculationDialogOpen && (
+                <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50 p-4">
+                    <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-xl md:max-w-2xl max-h-[80vh] overflow-auto">
                         <h3 className="text-xl font-semibold mb-4 text-center">
-                            เลือกเงื่อนไขสำหรับ {selectedHeader?.name}
+                            เลือกเงื่อนไขสำหรับการคำนวณ
                         </h3>
 
                         <div className="space-y-4">
@@ -762,22 +796,31 @@ const CreateTemplate = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     เลือกคอลัมน์ที่จะคำนวณ
                                 </label>
-                                <div className="flex gap-2 flex-wrap">
-                                    {headers.map((header) => (
-                                        <button
-                                            key={header.name}
-                                            onClick={() => handleAddToExpression(header.name, "column")}
-                                            className="px-4 py-2 border rounded-md bg-gray-200"
-                                        >
-                                            {header.name}
-                                        </button>
-                                    ))}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                    {headers
+                                        .filter((header) => header.condition === "balance")
+                                        .map((header) => (
+                                            <button
+                                                key={header.name}
+                                                onClick={() => handleAddToExpression(header.name, "column")}
+                                                className={`px-4 py-2 border rounded-md ${calculationExpression.some(item => item.value === header.name) || resultColumn === header.name
+                                                    ? "bg-gray-400 cursor-not-allowed"
+                                                    : "bg-gray-200"
+                                                    }`}
+                                                disabled={calculationExpression.some(item => item.value === header.name) || resultColumn === header.name} // Disable ปุ่มที่เลือกแล้ว
+                                            >
+                                                {header.name}
+                                            </button>
+                                        ))
+                                    }
                                 </div>
+                            </div>
 
-                                <label className="block text-sm font-medium text-gray-700 mt-2">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     เลือกตัวดำเนินการ
                                 </label>
-                                <div className="flex gap-2 mt-2">
+                                <div className="flex gap-2 flex-wrap">
                                     {["+", "-", "*", "/"].map((op) => (
                                         <button
                                             key={op}
@@ -792,52 +835,68 @@ const CreateTemplate = () => {
                                         </button>
                                     ))}
                                 </div>
+                            </div>
 
-                                <div className="mt-2">
-                                    <span className="font-bold">เงื่อนไข: </span>
-                                    {calculationExpression.map(item => item.value).join(" ")} =
-                                    <select
-                                        value={resultColumn}
-                                        onChange={(e) => setResultColumn(e.target.value)}
-                                        className="border p-1 ml-2"
-                                    >
-                                        <option value="">เลือกคอลัมน์ผลลัพธ์</option>
-                                        {headers
-                                            .filter(header => !calculationExpression.some(item => item.value === header.name))
-                                            .map((header) => (
-                                                <option key={header.name} value={header.name}>
-                                                    {header.name}
-                                                </option>
-                                            ))}
-                                    </select>
+                            <div>
+                                <span className="font-bold">เงื่อนไข: </span>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                    {calculationExpression.map((item, index) => (
+                                        <span key={index} className="inline-flex items-center rounded-md">
+                                            <span>{item.value}</span>
+                                        </span>
+                                    ))}
                                 </div>
+                                =
+                                <select
+                                    value={resultColumn}
+                                    onChange={(e) => setResultColumn(e.target.value)}
+                                    className="border p-1 ml-2 mt-3"
+                                >
+                                    <option value="">เลือกคอลัมน์ผลลัพธ์</option>
+                                    {headers
+                                        .filter(header => !calculationExpression.some(item => item.value === header.name)) // เงื่อนไขให้แสดงคอลัมน์ที่ยังไม่ถูกเลือก
+                                        .map((header) => (
+                                            <option key={header.name} value={header.name}>
+                                                {header.name}
+                                            </option>
+                                        ))}
+                                </select>
+                            </div>
 
-                                <div className="flex justify-between mt-4">
-                                    <button
-                                        onClick={addComplexCondition}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-md"
-                                    >
-                                        เพิ่มเงื่อนไข
-                                    </button>
-                                    <button
-                                        onClick={handleClearExpression}
-                                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
-                                    >
-                                        ล้างข้อมูล
-                                    </button>
-                                    <button
-                                        onClick={() => setIsCalculationDialogOpen(false)}
-                                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                                    >
-                                        ปิด
-                                    </button>
-                                </div>
+                            <div className="flex flex-col md:flex-row gap-2 mt-4">
+                                <button
+                                    onClick={addComplexCondition}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md flex-1"
+                                >
+                                    เพิ่มเงื่อนไข
+                                </button>
+                                <button
+                                    onClick={handleClearExpression}
+                                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md flex-1"
+                                >
+                                    ล้างข้อมูล
+                                </button>
+                                <button
+                                    onClick={handleRemoveLastExpression}
+                                    disabled={calculationExpression.length === 0}
+                                    className={`px-4 py-2 rounded-md flex-1 ${calculationExpression.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-red-500 text-white"
+                                        }`}
+                                >
+                                    ลบทีละตัว
+                                </button>
+                                <button
+                                    onClick={() => setIsCalculationDialogOpen(false)}
+                                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md flex-1 hover:bg-gray-300"
+                                >
+                                    ปิด
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
-            )} */}
-            {isCalculationDialogOpen && (
+            )}
+
+            {/* {isCalculationDialogOpen && (
                 <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
                     <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-xl md:max-w-2xl overflow-y-auto max-h-[80vh]">
                         <h3 className="text-xl font-semibold mb-4 text-center">
@@ -947,6 +1006,113 @@ const CreateTemplate = () => {
                                 </button>
                                 <button
                                     onClick={closeOptionDialog}
+                                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                                >
+                                    ปิด
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )} */}
+
+            {isGreaterLessThanDialogOpen && (
+                <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-xl md:max-w-2xl overflow-y-auto max-h-[80vh]">
+                        <h3 className="text-xl font-semibold mb-4 text-center">
+                            เลือกเงื่อนไขสำหรับการเปรียบเทียบ
+                        </h3>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    เลือกคอลัมน์ที่จะเปรียบเทียบ
+                                </label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                    {headers
+                                        .filter((header) => header.condition === "balance")
+                                        .map((header) => (
+                                            <div key={header.name} className="flex flex-col gap-2 p-2 bg-gray-100 rounded-md shadow-md">
+                                                <h4 className="text-center font-medium text-gray-700">{header.name}</h4>
+
+                                                <button
+                                                    onClick={() => handleGraterColumnSelect(header.name, 'addend')}
+                                                    className={`px-4 py-2 rounded-md shadow-sm border 
+                                                    ${selectedColumns.addend === header.name
+                                                            ? 'bg-blue-600 text-white'
+                                                            : 'bg-white text-gray-700 hover:bg-blue-200'}
+                                                    transition`}
+                                                >
+                                                    ตัวตั้ง (Addend)
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleGraterColumnSelect(header.name, 'operand')}
+                                                    className={`px-4 py-2 rounded-md shadow-sm border 
+                                                    ${selectedColumns.operand === header.name
+                                                            ? 'bg-yellow-600 text-white'
+                                                            : 'bg-white text-gray-700 hover:bg-yellow-200'}
+                                                    transition`}
+                                                >
+                                                    ตัวกระทำ (Operand)
+                                                </button>
+                                            </div>
+                                        ))}
+                                </div>
+
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">เลือกประเภทการเปรียบเทียบ</label>
+                                <select
+                                    value={compareType}
+                                    onChange={handleCompareTypeChange}
+                                    className="w-full border border-gray-300 rounded-md p-2"
+                                >
+                                    <option value="">เลือกประเภทการเปรียบเทียบ</option>
+                                    <option value=">">มากกว่า</option>
+                                    <option value="<">น้อยกว่า</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">เงื่อนไขการคำนวณ</label>
+                                <input
+                                    type="text"
+                                    value={`${selectedColumns.addend} ${compareType} ${selectedColumns.operand}`}
+                                    onChange={(e) => setCalculationCondition(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-md p-2"
+                                    placeholder={`เช่น ${selectedColumns.addend} ${compareType} ${selectedColumns.operand}`}
+                                />
+                                {greaterLessCondition.length > 0 && (
+                                    <div className="mt-4 mb-6">
+                                        <h4 className="text-lg font-semibold">เงื่อนไขที่เพิ่มเข้ามา:</h4>
+                                        <ul className="list-disc pl-5">
+                                            {greaterLessCondition.map((condition, index) => (
+                                                <li key={index} className="flex justify-between items-center">
+                                                    {`${condition.addend} ${condition.type} ${condition.operand}`}
+                                                    <button
+                                                        onClick={() => removeCompare(index)}
+                                                        className="ml-2 text-red-600 hover:text-red-800"
+                                                    >
+                                                        ลบ
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-between mt-4">
+                                <button
+                                    onClick={addGreaterLessCondition}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                >
+                                    เพิ่มเงื่อนไข
+                                </button>
+                                <button
+                                    onClick={() => setIsGreaterLessThanDialogOpen(false)}
                                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
                                 >
                                     ปิด

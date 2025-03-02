@@ -112,7 +112,7 @@ const TemplateManagement = () => {
 
     const newTemplate = {
       userToken: userToken,
-      templatename: `${template.templatename}_copy`, // เพิ่ม "_copy" ต่อท้ายชื่อ
+      templatename: `${template.templatename}_copy`,
       headers: template.headers,
       maxRows: template.maxRows,
       condition: {
@@ -122,7 +122,6 @@ const TemplateManagement = () => {
       }
     };
 
-    // อัปเดต LocalStorage
     const existingTemplates = JSON.parse(localStorage.getItem("templates")) || [];
     existingTemplates.push(newTemplate);
     localStorage.setItem("templates", JSON.stringify(existingTemplates));
@@ -388,11 +387,11 @@ const TemplateManagement = () => {
                               {template.condition?.calculations?.length > 0 ? (
                                 template.condition.calculations.map((calc, idx) => (
                                   <li key={idx} className="mt-1">
-                                    {calc.result} = {calc.addend} {calc.type} {calc.operand}
+                                    {`${calc.expression.join(" ")} = ${calc.result}`}
                                   </li>
                                 ))
                               ) : (
-                                <li>ไม่มีเงื่อนไขการคำนวณ</li>
+                                <li className="mt-1">ไม่มีเงื่อนไขการคำนวณ</li>
                               )}
                             </ul>
                           </div>
@@ -406,7 +405,7 @@ const TemplateManagement = () => {
                                   </li>
                                 ))
                               ) : (
-                                <li>ไม่มีเงื่อนไขการเปรียบเทียบ</li>
+                                <li className="mt-1">ไม่มีเงื่อนไขการเปรียบเทียบ</li>
                               )}
                             </ul>
                           </div>
@@ -420,7 +419,7 @@ const TemplateManagement = () => {
                                   </li>
                                 ))
                               ) : (
-                                <li>ไม่มีเงื่อนไขความสัมพันธ์</li>
+                                <li className="mt-1">ไม่มีเงื่อนไขความสัมพันธ์</li>
                               )}
                             </ul>
                           </div>
