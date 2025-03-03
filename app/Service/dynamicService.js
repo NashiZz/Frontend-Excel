@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:8080/api";
+const API_BASE_URL = "https://backend-excel-cagd.onrender.com/api";
 
 export const uploadExcelFile = async (file, setErrors, setSuccessMessage) => {
     const formData = new FormData();

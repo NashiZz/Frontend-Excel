@@ -10,13 +10,18 @@ import { deleteTemplate, fetchTemplates, updateUserTokenInBackend } from "@/app/
 const TemplateManagement = () => {
   const [templates, setTemplates] = useState([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showCopyDialog, setShowCopyDialog] = useState(false);
+  const [showDownloadDialog, setShowDownloadDialog] = useState(false);
+  const [templateToCopy, setTemplateToCopy] = useState(null);
   const [templateToDelete, setTemplateToDelete] = useState(null);
+  const [templateToDownload, setTemplateToDownload] = useState(null);
   const [currentTemplate, setCurrentTemplate] = useState(null);
   const [editedTemplate, setEditedTemplate] = useState({ templatename: "", headers: [], maxRows: "" });
   const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [downloding, setDownloading] = useState(false);
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [showToken, setShowToken] = useState(false);
@@ -109,7 +114,6 @@ const TemplateManagement = () => {
   };
 
   const handleDuplicateTemplate = async (template) => {
-
     const newTemplate = {
       userToken: userToken,
       templatename: `${template.templatename}_copy`,
@@ -121,16 +125,15 @@ const TemplateManagement = () => {
         relations: template.condition?.relations || []
       }
     };
-
     const existingTemplates = JSON.parse(localStorage.getItem("templates")) || [];
     existingTemplates.push(newTemplate);
     localStorage.setItem("templates", JSON.stringify(existingTemplates));
 
     console.log("Sending duplicated template:", newTemplate);
-    setIsSaving(true);
+    setCopying(true);
 
     try {
-      const response = await fetch("http://localhost:8080/api/save/templates", {
+      const response = await fetch("https://backend-excel-cagd.onrender.com/api/save/templates", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -141,7 +144,7 @@ const TemplateManagement = () => {
       const data = await response.json();
       if (response.ok) {
         alert("คัดลอกและบันทึกข้อมูลเรียบร้อยแล้ว!");
-        setTemplates((prevTemplates) => [...prevTemplates, newTemplate]); 
+        setTemplates((prevTemplates) => [...prevTemplates, newTemplate]);
       } else {
         alert(`Error: ${data.message}`);
       }
@@ -149,7 +152,8 @@ const TemplateManagement = () => {
       console.error("Error saving duplicated template:", error);
       alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
     } finally {
-      setIsSaving(false);
+      setCopying(false);
+      setShowCopyDialog(false);
     }
   };
 
@@ -160,6 +164,16 @@ const TemplateManagement = () => {
 
   const closeDeleteDialog = () => {
     setShowDeleteDialog(false);
+  };
+
+  const openCopyDialog = (template) => {
+    setTemplateToCopy(template);
+    setShowCopyDialog(true);
+  };
+
+  const openDownloadDialog = (template) => {
+    setTemplateToDownload(template);
+    setShowDownloadDialog(true);
   };
 
   const handleDeleteTemplate = async (templateName) => {
@@ -184,13 +198,6 @@ const TemplateManagement = () => {
     navigate("/createtemplate");
   };
 
-  <button
-    onClick={() => handleDuplicateTemplate(template)}
-    className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600"
-  >
-    <FontAwesomeIcon icon={faCopy} />
-  </button>
-
   const handleEditTemplate = (template) => {
     setCurrentTemplate(template);
     setEditedTemplate({ ...template });
@@ -203,27 +210,41 @@ const TemplateManagement = () => {
       console.error("ไม่มี headers สำหรับสร้างไฟล์ Excel");
       return;
     }
+    setDownloading(true);
 
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet("Template");
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Template");
 
-    worksheet.columns = headers.map(header => ({
-      header: header.name,
-      key: header.key,
-      width: 20
-    }));
+      worksheet.columns = headers.map(header => ({
+        header: header.name,
+        key: header.key,
+        width: 20
+      }));
 
-    worksheet.getRow(1).eachCell((cell) => {
-      cell.font = { bold: true };
-      cell.alignment = { horizontal: "center", vertical: "middle" };
-    });
+      const headerRow = worksheet.getRow(1);
+      headerRow.eachCell(cell => {
+        cell.font = { bold: true };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFDDDDDD" }, 
+        };
+      });
 
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
 
-    saveAs(blob, `${fileName}.xlsx`);
+      saveAs(blob, `${fileName}.xlsx`);
+    } catch (error) {
+      console.error("เกิดข้อผิดพลาดในการสร้างไฟล์ Excel:", error);
+    } finally {
+      setDownloading(false);
+      setShowDownloadDialog(false);
+    }
   };
 
   return (
@@ -353,13 +374,13 @@ const TemplateManagement = () => {
                     </td>
                     <td className="px-2 sm:px-4 py-2">
                       <button
-                        onClick={() => generateExcel(template.headers, template.templatename)}
+                        onClick={() => openDownloadDialog(template)}
                         className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 mr-2"
                       >
                         <FontAwesomeIcon icon={faFileArrowDown} />
                       </button>
                       <button
-                        onClick={() => handleDuplicateTemplate(template)}
+                        onClick={() => openCopyDialog(template)}
                         className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600"
                       >
                         <FontAwesomeIcon icon={faCopy} />
@@ -431,45 +452,107 @@ const TemplateManagement = () => {
               ))}
             </tbody>
           </table>
-          {showDeleteDialog && (
+          {(showDeleteDialog || showCopyDialog || showDownloadDialog) && (
             <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
-              {deleting ? (
-                <div className="bg-white rounded-lg p-6 w-80">
-                  <div className="flex flex-col px-6 items-center">
-                    <p className="text-red-800 text-lg font-semibold">กำลังลบ...</p>
-                    <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
-                  </div>
+              {showDeleteDialog && (
+                <div className="bg-white rounded-lg p-6 w-120">
+                  {deleting ? (
+                    <div className="flex flex-col px-6 items-center">
+                      <p className="text-red-800 text-lg font-semibold">กำลังลบ...</p>
+                      <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
+                    </div>
+                  ) : (
+                    <div>
+                      <h2 className="text-xl font-semibold mb-6">คุณแน่ใจหรือไม่ที่จะลบเทมเพลตนี้?</h2>
+                      <div className="text-center">
+                        <h2 className="text-lg font-semibold text-blue-800">{templateToDelete?.templatename}</h2>
+                      </div>
+                      <div className="mt-6 flex justify-between gap-4">
+                        <button
+                          onClick={closeDeleteDialog}
+                          className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+                        >
+                          ยกเลิก
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTemplate(templateToDelete.templatename)}
+                          className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                        >
+                          ยืนยันการลบ
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <>
-                  <div className="bg-white rounded-lg p-6 w-120">
-                    <h2 className="text-xl font-semibold mb-6">คุณแน่ใจหรือไม่ที่จะลบเทมเพลตนี้?</h2>
-                    <div className="text-center">
-                      <p>ชื่อเทมเพลต</p>
-                      <h2 className="font-semibold text-blue-800">{templateToDelete?.templatename}</h2>
+              )}
+
+              {showCopyDialog && (
+                <div className="bg-white rounded-lg p-6 w-120">
+                  {copying ? (
+                    <div className="flex flex-col px-6 items-center">
+                      <p className="text-blue-800 text-lg font-semibold">กำลังคัดลอก...</p>
+                      <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
                     </div>
-                    <div className="mt-6 flex justify-between gap-4">
-                      <button
-                        onClick={closeDeleteDialog}
-                        className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
-                      >
-                        ยกเลิก
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTemplate(templateToDelete.templatename)}
-                        className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
-                      >
-                        ยืนยันการลบ
-                      </button>
+                  ) : (
+                    <div>
+                      <h2 className="text-xl font-semibold mb-6">คุณต้องการคัดลอกเทมเพลตนี้ใช่หรือไม่?</h2>
+                      <div className="text-center">
+                        <h2 className="text-lg font-semibold text-blue-800">{templateToCopy.templatename}</h2>
+                      </div>
+                      <div className="mt-6 flex justify-between gap-4">
+                        <button
+                          onClick={() => setShowCopyDialog(false)}
+                          className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+                        >
+                          ยกเลิก
+                        </button>
+                        <button
+                          onClick={() => handleDuplicateTemplate(templateToCopy)}
+                          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+                        >
+                          คัดลอก
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </>
+                  )}
+                </div>
+              )}
+
+              {showDownloadDialog && (
+                <div className="bg-white rounded-lg p-6 w-120">
+                  {downloding ? (
+                    <div className="flex flex-col px-6 items-center">
+                      <p className="text-blue-800 text-lg font-semibold">กำลังดาวน์โหลดไฟล์...</p>
+                      <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
+                    </div>
+                  ) : (
+                    <div>
+                      <h2 className="text-xl font-semibold mb-6">คุณต้องการดาวน์โหลดเทมเพลตนี้ใช่หรือไม่?</h2>
+                      <div className="text-center">
+                        <h2 className="text-lg font-semibold text-blue-800">{templateToDownload.templatename}</h2>
+                      </div>
+                      <div className="mt-6 flex justify-between gap-4">
+                        <button
+                          onClick={() => setShowDownloadDialog(false)}
+                          className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+                        >
+                          ยกเลิก
+                        </button>
+                        <button
+                          onClick={() => generateExcel(templateToDownload.headers, templateToDownload.templatename)}
+                          className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
+                        >
+                          ดาวน์โหลด
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
         </div>
-      )
-      }
+      )}
 
       {
         isLoadDialogOpen && (

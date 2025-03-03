@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlusCircle, faFileAlt, faArrowUp, faArrowDown } from '@fortawesome/free-solid-svg-icons';
 import { updateTemplate } from "@/app/Service/templateService";
+import { downloadErrorReport } from "../uploadFile_Page/excelErrorReport";
 
 const EditTemplate = () => {
     const navigate = useNavigate();

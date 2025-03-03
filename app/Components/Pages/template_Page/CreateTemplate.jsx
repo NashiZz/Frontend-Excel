@@ -82,7 +82,7 @@ const CreateTemplate = () => {
         setIsSaving(true);
 
         try {
-            const response = await fetch("http://localhost:8080/api/save/templates", {
+            const response = await fetch("https://backend-excel-cagd.onrender.com/api/save/templates", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -162,7 +162,7 @@ const CreateTemplate = () => {
         };
 
         setCalculationCondition((prev) => [...prev, newCondition]);
-        console.log(calculationCondition);
+        console.log(newCondition);
 
         handleClearExpression();
     };
@@ -670,7 +670,7 @@ const CreateTemplate = () => {
                             <div className="mt-4">
                                 <h4 className="text-lg font-semibold">เงื่อนไขการคำนวณ:</h4>
                                 <ul className="list-disc pl-5 text-sm md:text-base">
-                                    {condition.calculations.map((calc, index) => (
+                                    {calculationCondition.map((calc, index) => (
                                         <li key={index} className="mt-1">
                                             {`${calc.expression.join(" ")} = ${calc.result}`}
                                         </li>
