@@ -5,7 +5,7 @@ import { faFileAlt, faEdit, faTrashAlt, faCopy, faEyeSlash, faEye, faChevronDown
 import { v4 as uuidv4 } from "uuid";
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import { deleteTemplate, fetchTemplates, updateUserTokenInBackend } from "@/app/Service/templateService";
+import { deleteTemplate, duplicateTemplate, fetchTemplates, updateUserTokenInBackend } from "@/app/Service/templateService";
 
 const TemplateManagement = () => {
   const [templates, setTemplates] = useState([]);
@@ -22,13 +22,13 @@ const TemplateManagement = () => {
   const [deleting, setDeleting] = useState(false);
   const [copying, setCopying] = useState(false);
   const [downloding, setDownloading] = useState(false);
-  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [newUserToken, setNewUserToken] = useState("");
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [isLoadToken, setIsLoadToken] = useState(false);
   const [isExpanded, setIsExpanded] = useState({});
+  const navigate = useNavigate();
 
   const toggleExpand = (templateName) => {
     setIsExpanded((prev) => ({
@@ -113,50 +113,10 @@ const TemplateManagement = () => {
     }
   };
 
-  const handleDuplicateTemplate = async (template) => {
-    const newTemplate = {
-      userToken: userToken,
-      templatename: `${template.templatename}_copy`,
-      headers: template.headers,
-      maxRows: template.maxRows,
-      condition: {
-        calculations: template.condition?.calculations || [],
-        compares: template.condition?.compares || [],
-        relations: template.condition?.relations || []
-      }
-    };
-    const existingTemplates = JSON.parse(localStorage.getItem("templates")) || [];
-    existingTemplates.push(newTemplate);
-    localStorage.setItem("templates", JSON.stringify(existingTemplates));
-
-    console.log("Sending duplicated template:", newTemplate);
-    setCopying(true);
-
-    try {
-      const response = await fetch("https://backend-excel-cagd.onrender.com/api/save/templates", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newTemplate),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        alert("คัดลอกและบันทึกข้อมูลเรียบร้อยแล้ว!");
-        setTemplates((prevTemplates) => [...prevTemplates, newTemplate]);
-      } else {
-        alert(`Error: ${data.message}`);
-      }
-    } catch (error) {
-      console.error("Error saving duplicated template:", error);
-      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
-    } finally {
-      setCopying(false);
-      setShowCopyDialog(false);
-    }
+  const handleDuplicateTemplate = (template) => {
+    duplicateTemplate(template, userToken, setTemplates, setCopying, setShowCopyDialog);
   };
-
+ 
   const openDeleteDialog = (template) => {
     setTemplateToDelete(template);
     setShowDeleteDialog(true);
@@ -176,13 +136,13 @@ const TemplateManagement = () => {
     setShowDownloadDialog(true);
   };
 
-  const handleDeleteTemplate = async (templateName) => {
+  const handleDeleteTemplate = async (templateId) => {
     try {
       setDeleting(true);
-      const response = await deleteTemplate(userToken, templateName);
+      const response = await deleteTemplate(userToken, templateId);
       if (response) {
         const updatedTemplates = templates.filter(
-          (template) => template.templatename !== templateName
+          (template) => template.template_id !== templateId
         );
         setTemplates(updatedTemplates);
       }
@@ -406,7 +366,7 @@ const TemplateManagement = () => {
                             <h3 className="text-gray-700 font-semibold">เงื่อนไขในการคำนวณ</h3>
                             <ul className="list-disc pl-5 text-gray-600">
                               {template.condition?.calculations?.length > 0 ? (
-                                template.condition.calculations.map((calc, idx) => (
+                                template.condition.calculations?.map((calc, idx) => (
                                   <li key={idx} className="mt-1">
                                     {`${calc.expression.join(" ")} = ${calc.result}`}
                                   </li>
@@ -475,7 +435,7 @@ const TemplateManagement = () => {
                           ยกเลิก
                         </button>
                         <button
-                          onClick={() => handleDeleteTemplate(templateToDelete.templatename)}
+                          onClick={() => handleDeleteTemplate(templateToDelete.template_id)}
                           className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
                         >
                           ยืนยันการลบ

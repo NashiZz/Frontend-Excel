@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlusCircle, faFileAlt, faArrowUp, faArrowDown } from '@fortawesome/free-solid-svg-icons';
 import { updateTemplate } from "@/app/Service/templateService";
-import { downloadErrorReport } from "../uploadFile_Page/excelErrorReport";
 
 const EditTemplate = () => {
     const navigate = useNavigate();
@@ -13,7 +12,7 @@ const EditTemplate = () => {
 
     const [fileName, setFileName] = useState("");
     const [headers, setHeaders] = useState([]);
-    const [maxRows, setMaxRows] = useState(10);
+    const [maxRows, setMaxRows] = useState(0);
     const [calculationType, setCalculationType] = useState('');
     const [calculationCondition, setCalculationCondition] = useState([]);
     const [calculationExpression, setCalculationExpression] = useState([]);
@@ -53,6 +52,68 @@ const EditTemplate = () => {
     ];
 
     useEffect(() => {
+        const changes = [];
+    
+        headers.forEach((header) => {
+            const isUsedInCalculation = calculationCondition.some(condition =>
+                condition.expression.includes(header.name)
+            );
+            const isUsedInComparison = greaterLessCondition.some(condition =>
+                condition.addend === header.name || condition.operand === header.name
+            );
+            const isUsedInRelation = relationCondition.some(relation =>
+                relation.column1 === header.name || relation.column2 === header.name
+            );
+    
+            if (header.conditionChanged && (isUsedInCalculation || isUsedInComparison || isUsedInRelation)) {
+                changes.push(header.name);
+            }
+        });
+    
+        if (changes.length > 0) {
+            const confirmDelete = window.confirm(`หัวข้อต่อไปนี้ถูกใช้ในเงื่อนไขอื่น: ${changes.join(", ")}\nต้องการลบเงื่อนไขที่เกี่ยวข้องหรือไม่?`);
+            if (confirmDelete) {
+                removeRelatedConditions(changes);
+            } else {
+                resetConditionChanged(changes);
+            }
+        }
+    }, [headers]);
+    
+    const removeRelatedConditions = (changedHeaders) => {
+        changedHeaders.forEach((headerName) => {
+            calculationCondition.forEach((condition, index) => {
+                if (condition.expression.includes(headerName)) {
+                    removeCalculationCondition(index);
+                }
+            });
+    
+            greaterLessCondition.forEach((condition, index) => {
+                if (condition.addend === headerName || condition.operand === headerName) {
+                    removeCompare(index);
+                }
+            });
+    
+            relationCondition.forEach((relation, index) => {
+                if (relation.column1 === headerName || relation.column2 === headerName) {
+                    removeRelationCondition(index);
+                }
+            });
+        });
+    };
+    
+    const resetConditionChanged = (changedHeaders) => {
+        const updatedHeaders = [...headers];
+        changedHeaders.forEach((headerName) => {
+            const headerIndex = updatedHeaders.findIndex(header => header.name === headerName);
+            if (headerIndex !== -1) {
+                updatedHeaders[headerIndex].conditionChanged = false; 
+            }
+        });
+        setHeaders(updatedHeaders); 
+    };
+
+    useEffect(() => {
         if (!templateData) {
             console.error("ไม่มีข้อมูล template ที่ส่งมา");
             navigate("/template");
@@ -83,8 +144,13 @@ const EditTemplate = () => {
     const handleHeaderChange = (index, field, value) => {
         const updatedHeaders = [...headers];
         updatedHeaders[index][field] = value;
+        
+        if (field === "condition") {
+            updatedHeaders[index].conditionChanged = true;
+        }
+    
         setHeaders(updatedHeaders);
-    };
+    };    
 
     const addHeader = () => {
         setHeaders([...headers, { name: "", condition: "" }]);
@@ -250,45 +316,45 @@ const EditTemplate = () => {
         handleClearExpression();
     };
 
-    const handleCalculationTypeChange = (e) => {
-        setCalculationType(e.target.value);
-    };
+    // const handleCalculationTypeChange = (e) => {
+    //     setCalculationType(e.target.value);
+    // };
 
-    const addCondition = () => {
-        if (!calculationType || !selectedColumns.addend || !selectedColumns.operand || !selectedColumns.result) {
-            alert("กรุณากรอกค่าทั้งหมด");
-            return;
-        }
+    // const addCondition = () => {
+    //     if (!calculationType || !selectedColumns.addend || !selectedColumns.operand || !selectedColumns.result) {
+    //         alert("กรุณากรอกค่าทั้งหมด");
+    //         return;
+    //     }
 
-        const newCalculation = {
-            type: calculationType,
-            addend: selectedColumns.addend,
-            operand: selectedColumns.operand,
-            result: selectedColumns.result
-        };
+    //     const newCalculation = {
+    //         type: calculationType,
+    //         addend: selectedColumns.addend,
+    //         operand: selectedColumns.operand,
+    //         result: selectedColumns.result
+    //     };
 
-        const isDuplicate = calculationCondition.some(
-            condition =>
-                condition.addend === newCalculation.addend &&
-                condition.type === newCalculation.type &&
-                condition.operand === newCalculation.operand &&
-                condition.result === newCalculation.result
-        );
+    //     const isDuplicate = calculationCondition.some(
+    //         condition =>
+    //             condition.addend === newCalculation.addend &&
+    //             condition.type === newCalculation.type &&
+    //             condition.operand === newCalculation.operand &&
+    //             condition.result === newCalculation.result
+    //     );
 
-        if (isDuplicate) {
-            alert("เงื่อนไขนี้ถูกเพิ่มไปแล้ว");
-            return;
-        }
+    //     if (isDuplicate) {
+    //         alert("เงื่อนไขนี้ถูกเพิ่มไปแล้ว");
+    //         return;
+    //     }
 
-        setCalculationCondition(prevCalculations => [...prevCalculations, newCalculation]);
+    //     setCalculationCondition(prevCalculations => [...prevCalculations, newCalculation]);
 
-        setCalculationType('');
-        setSelectedColumns({
-            addend: '',
-            operand: '',
-            result: ''
-        });
-    };
+    //     setCalculationType('');
+    //     setSelectedColumns({
+    //         addend: '',
+    //         operand: '',
+    //         result: ''
+    //     });
+    // };
 
     const addColumnCondition = () => {
         if (!selectedFirstColumn || !selectedSecondColumn || !selectedCondition) {
@@ -354,6 +420,7 @@ const EditTemplate = () => {
         }
 
         const updatedTemplate = {
+            template_id: templateData.template_id,
             templatename: fileName,
             headers,
             condition: {
@@ -367,7 +434,7 @@ const EditTemplate = () => {
         setIsSaving(true);
 
         try {
-            const response = await updateTemplate(userToken, templateData.templatename, updatedTemplate);
+            const response = await updateTemplate(userToken, templateData.template_id, updatedTemplate);
 
             if (response) {
                 navigate("/template");

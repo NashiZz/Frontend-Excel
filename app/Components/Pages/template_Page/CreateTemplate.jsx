@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlusCircle, faFileAlt, faTrashAlt, faArrowUp, faArrowDown } from '@fortawesome/free-solid-svg-icons';
+import { saveTemplate } from '@/app/Service/templateService';
 
 const CreateTemplate = () => {
     const navigate = useNavigate();
@@ -15,7 +16,7 @@ const CreateTemplate = () => {
     const [isGreaterLessThanDialogOpen, setIsGreaterLessThanDialogOpen] = useState(false);
     const [isColumnConditionDialogOpen, setIsColumnConditionDialogOpen] = useState(false);
     const [fileName, setFileName] = useState("template");
-    const [maxRows, setMaxRows] = useState(10);
+    const [maxRows, setMaxRows] = useState('');
     const [calculationType, setCalculationType] = useState('');
     const [compareType, setCompareType] = useState('');
     const [selectedHeader, setSelectedHeader] = useState(null);
@@ -50,59 +51,8 @@ const CreateTemplate = () => {
         { label: 'ต้องมีค่าตาม Column ที่1', value: 'exists' },
     ];
 
-    const getUserToken = () => {
-        let token = localStorage.getItem("userToken");
-        return token;
-    };
-
-    const saveToLocalStorage = async () => {
-        if (!fileName.trim()) {
-            alert("กรุณากรอกชื่อ Template");
-            return;
-        }
-
-        const userToken = getUserToken();
-        const newTemplate = {
-            userToken: userToken,
-            templatename: fileName,
-            headers: headers,
-            maxRows: maxRows,
-            condition: {
-                calculations: calculationCondition || [],
-                compares: greaterLessCondition || [],
-                relations: relationCondition || []
-            }
-        };
-
-        const existingTemplates = JSON.parse(localStorage.getItem("templates")) || [];
-        existingTemplates.push(newTemplate);
-        localStorage.setItem("templates", JSON.stringify(existingTemplates));
-
-        console.log("Sending template:", newTemplate);
-        setIsSaving(true);
-
-        try {
-            const response = await fetch("https://backend-excel-cagd.onrender.com/api/save/templates", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(newTemplate),
-            });
-            const data = await response.json();
-            if (response.ok) {
-                alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
-                setIsDialogOpen(false);
-                navigate("/template");
-            } else {
-                alert(`Error: ${data.message}`);
-            }
-        } catch (error) {
-            console.error("Error saving template:", error);
-            alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
-        } finally {
-            setIsSaving(false);
-        }
+    const handleSaveTemplate = () => {
+        saveTemplate(fileName, headers, maxRows, calculationCondition, greaterLessCondition, relationCondition, setIsSaving, setIsDialogOpen, navigate);
     };
 
     const handleSelectOption = (option) => {
@@ -285,7 +235,7 @@ const CreateTemplate = () => {
 
         setHeaders(newHeaders);
         setExpandedHeader(index + direction);
-    };    
+    };
 
     const addHeader = () => {
         setHeaders([...headers, { name: "", condition: "" }]);
@@ -310,23 +260,23 @@ const CreateTemplate = () => {
         setIsOptionDialogOpen(true);
     };
 
-    const closeOptionDialog = () => {
-        setIsCalculationDialogOpen(false);
-        setSelectedHeader(null);
-    };
+    // const closeOptionDialog = () => {
+    //     setIsCalculationDialogOpen(false);
+    //     setSelectedHeader(null);
+    // };
 
-    const handleCalculationTypeChange = (e) => {
-        setCalculationType(e.target.value);
-    };
+    // const handleCalculationTypeChange = (e) => {
+    //     setCalculationType(e.target.value);
+    // };
 
     const handleCompareTypeChange = (e) => {
         setCompareType(e.target.value);
     };
 
-    const removeCondition = (index) => {
-        const updatedConditions = calculationCondition.filter((_, i) => i !== index);
-        setCalculationCondition(updatedConditions);
-    };
+    // const removeCondition = (index) => {
+    //     const updatedConditions = calculationCondition.filter((_, i) => i !== index);
+    //     setCalculationCondition(updatedConditions);
+    // };
 
     const removeCompare = (index) => {
         const updatedConditions = greaterLessCondition.filter((_, i) => i !== index);
@@ -342,20 +292,20 @@ const CreateTemplate = () => {
         setCalculationExpression(prev => prev.slice(0, -1));
     };
 
-    const handleColumnSelect = (columnName, columnType) => {
-        if (
-            (columnType === 'addend' && (selectedColumns.operand === columnName || selectedColumns.result === columnName)) ||
-            (columnType === 'operand' && (selectedColumns.addend === columnName || selectedColumns.result === columnName)) ||
-            (columnType === 'result' && (selectedColumns.addend === columnName || selectedColumns.operand === columnName))
-        ) {
-            return;
-        }
+        // const handleColumnSelect = (columnName, columnType) => {
+        //     if (
+        //         (columnType === 'addend' && (selectedColumns.operand === columnName || selectedColumns.result === columnName)) ||
+        //         (columnType === 'operand' && (selectedColumns.addend === columnName || selectedColumns.result === columnName)) ||
+        //         (columnType === 'result' && (selectedColumns.addend === columnName || selectedColumns.operand === columnName))
+        //     ) {
+        //         return;
+        //     }
 
-        setSelectedColumns((prevState) => ({
-            ...prevState,
-            [columnType]: prevState[columnType] === columnName ? null : columnName,
-        }));
-    };
+        //     setSelectedColumns((prevState) => ({
+        //         ...prevState,
+        //         [columnType]: prevState[columnType] === columnName ? null : columnName,
+        //     }));
+        // };
 
     const handleGraterColumnSelect = (columnName, columnType) => {
         if (
@@ -399,7 +349,7 @@ const CreateTemplate = () => {
             setIsDialogOpen(true);
         }
     };
-    
+
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -1242,7 +1192,7 @@ const CreateTemplate = () => {
                                     type="number"
                                     id="maxRows"
                                     className="w-full border border-gray-300 rounded-md p-2 mt-2"
-                                    value={maxRows}
+                                    value={maxRows || ''}
                                     onChange={(e) => setMaxRows(Number(e.target.value))}
                                     min="1"
                                 />
@@ -1259,7 +1209,7 @@ const CreateTemplate = () => {
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={saveToLocalStorage}
+                                        onClick={handleSaveTemplate}
                                         className="px-4 py-2 bg-blue-600 text-white rounded-md"
                                     >
                                         บันทึก
