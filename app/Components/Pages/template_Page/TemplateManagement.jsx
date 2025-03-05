@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFileAlt, faEdit, faTrashAlt, faCopy, faEyeSlash, faEye, faChevronDown, faChevronUp, faCloudArrowDown, faFileArrowDown, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faFileAlt, faEdit, faTrashAlt, faCopy, faEyeSlash, faEye, faChevronDown, faChevronUp, faCloudArrowDown, faFileArrowDown, faPlus, faTrash, faDownload, faTimesCircle, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 import { v4 as uuidv4 } from "uuid";
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -116,7 +116,7 @@ const TemplateManagement = () => {
   const handleDuplicateTemplate = (template) => {
     duplicateTemplate(template, userToken, setTemplates, setCopying, setShowCopyDialog);
   };
- 
+
   const openDeleteDialog = (template) => {
     setTemplateToDelete(template);
     setShowDeleteDialog(true);
@@ -189,7 +189,7 @@ const TemplateManagement = () => {
         cell.fill = {
           type: "pattern",
           pattern: "solid",
-          fgColor: { argb: "FFDDDDDD" }, 
+          fgColor: { argb: "FFDDDDDD" },
         };
       });
 
@@ -412,32 +412,36 @@ const TemplateManagement = () => {
               ))}
             </tbody>
           </table>
+
           {(showDeleteDialog || showCopyDialog || showDownloadDialog) && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
+            <div className="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-center z-50 transition-opacity duration-300">
+
+              {/* 🔴 Dialog สำหรับลบเทมเพลต */}
               {showDeleteDialog && (
-                <div className="bg-white rounded-lg p-6 w-120">
+                <div className="bg-white rounded-lg p-6 w-120 shadow-lg">
                   {deleting ? (
                     <div className="flex flex-col px-6 items-center">
                       <p className="text-red-800 text-lg font-semibold">กำลังลบ...</p>
-                      <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
+                      <div className="w-8 h-8 border-4 border-red-500 border-dashed rounded-full animate-spin mt-3"></div>
                     </div>
                   ) : (
-                    <div>
-                      <h2 className="text-xl font-semibold mb-6">คุณแน่ใจหรือไม่ที่จะลบเทมเพลตนี้?</h2>
-                      <div className="text-center">
-                        <h2 className="text-lg font-semibold text-blue-800">{templateToDelete?.templatename}</h2>
-                      </div>
+                    <div className="text-center">
+                      <FontAwesomeIcon icon={faTrash} className="text-red-600 text-4xl mb-4" />
+                      <h2 className="text-xl font-semibold mb-4">คุณแน่ใจหรือไม่ที่จะลบเทมเพลตนี้?</h2>
+                      <h2 className="text-lg font-semibold text-blue-800">{templateToDelete?.templatename}</h2>
                       <div className="mt-6 flex justify-between gap-4">
                         <button
                           onClick={closeDeleteDialog}
-                          className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+                          className="flex items-center gap-2 bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
                         >
+                          <FontAwesomeIcon icon={faTimesCircle} />
                           ยกเลิก
                         </button>
                         <button
                           onClick={() => handleDeleteTemplate(templateToDelete.template_id)}
-                          className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                          className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
                         >
+                          <FontAwesomeIcon icon={faCheckCircle} />
                           ยืนยันการลบ
                         </button>
                       </div>
@@ -446,30 +450,32 @@ const TemplateManagement = () => {
                 </div>
               )}
 
+              {/* 🔵 Dialog สำหรับคัดลอกเทมเพลต */}
               {showCopyDialog && (
-                <div className="bg-white rounded-lg p-6 w-120">
+                <div className="bg-white rounded-lg p-6 w-120 shadow-lg">
                   {copying ? (
                     <div className="flex flex-col px-6 items-center">
                       <p className="text-blue-800 text-lg font-semibold">กำลังคัดลอก...</p>
                       <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
                     </div>
                   ) : (
-                    <div>
-                      <h2 className="text-xl font-semibold mb-6">คุณต้องการคัดลอกเทมเพลตนี้ใช่หรือไม่?</h2>
-                      <div className="text-center">
-                        <h2 className="text-lg font-semibold text-blue-800">{templateToCopy.templatename}</h2>
-                      </div>
+                    <div className="text-center">
+                      <FontAwesomeIcon icon={faCopy} className="text-blue-600 text-4xl mb-4" />
+                      <h2 className="text-xl font-semibold mb-4">คุณต้องการคัดลอกเทมเพลตนี้ใช่หรือไม่?</h2>
+                      <h2 className="text-lg font-semibold text-blue-800">{templateToCopy.templatename}</h2>
                       <div className="mt-6 flex justify-between gap-4">
                         <button
                           onClick={() => setShowCopyDialog(false)}
-                          className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+                          className="flex items-center gap-2 bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
                         >
+                          <FontAwesomeIcon icon={faTimesCircle} />
                           ยกเลิก
                         </button>
                         <button
                           onClick={() => handleDuplicateTemplate(templateToCopy)}
-                          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+                          className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
                         >
+                          <FontAwesomeIcon icon={faCheckCircle} />
                           คัดลอก
                         </button>
                       </div>
@@ -478,30 +484,32 @@ const TemplateManagement = () => {
                 </div>
               )}
 
+              {/* 🟢 Dialog สำหรับดาวน์โหลดเทมเพลต */}
               {showDownloadDialog && (
-                <div className="bg-white rounded-lg p-6 w-120">
+                <div className="bg-white rounded-lg p-6 w-120 shadow-lg">
                   {downloding ? (
                     <div className="flex flex-col px-6 items-center">
                       <p className="text-blue-800 text-lg font-semibold">กำลังดาวน์โหลดไฟล์...</p>
-                      <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
+                      <div className="w-8 h-8 border-4 border-green-500 border-dashed rounded-full animate-spin mt-3"></div>
                     </div>
                   ) : (
-                    <div>
-                      <h2 className="text-xl font-semibold mb-6">คุณต้องการดาวน์โหลดเทมเพลตนี้ใช่หรือไม่?</h2>
-                      <div className="text-center">
-                        <h2 className="text-lg font-semibold text-blue-800">{templateToDownload.templatename}</h2>
-                      </div>
+                    <div className="text-center">
+                      <FontAwesomeIcon icon={faDownload} className="text-green-600 text-4xl mb-4" />
+                      <h2 className="text-xl font-semibold mb-4">คุณต้องการดาวน์โหลดเทมเพลตนี้ใช่หรือไม่?</h2>
+                      <h2 className="text-lg font-semibold text-blue-800">{templateToDownload.templatename}</h2>
                       <div className="mt-6 flex justify-between gap-4">
                         <button
                           onClick={() => setShowDownloadDialog(false)}
-                          className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+                          className="flex items-center gap-2 bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
                         >
+                          <FontAwesomeIcon icon={faTimesCircle} />
                           ยกเลิก
                         </button>
                         <button
                           onClick={() => generateExcel(templateToDownload.headers, templateToDownload.templatename)}
-                          className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
+                          className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
                         >
+                          <FontAwesomeIcon icon={faCheckCircle} />
                           ดาวน์โหลด
                         </button>
                       </div>
@@ -511,6 +519,7 @@ const TemplateManagement = () => {
               )}
             </div>
           )}
+
         </div>
       )}
 

@@ -1,12 +1,16 @@
 import { uploadExcelFile, uploadExcelFileWithHeader, uploadExcelFileWithTemplate } from '@/app/Service/dynamicService';
 import React, { useEffect, useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import { downloadErrorReport } from './excelErrorReport';
 import { fetchTemplates } from '@/app/Service/templateService';
+import { useDropzone } from 'react-dropzone';
+import { faFileAlt, faFileExcel } from '@fortawesome/free-solid-svg-icons';
 
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
+    const [fileName, setFileName] = useState('');
     const [headers, setHeaders] = useState([]);
     const [rows, setRows] = useState([]);
     const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
@@ -26,10 +30,10 @@ const ExcelUpload = () => {
             if (!userToken) {
                 return;
             }
-    
+
             try {
                 const data = await fetchTemplates(userToken);
-                
+
                 if (data && data.templates) {
                     if (data.templates.length === 0) {
                         setTemplates([]);
@@ -39,7 +43,7 @@ const ExcelUpload = () => {
                 }
             } catch (error) {
                 console.error("เกิดข้อผิดพลาดในการโหลดเทมเพลต:", error);
-    
+
                 if (error.response) {
                     toast.error(`เกิดข้อผิดพลาด: ${error.response.status} - ${error.response.data.message}`);
                 } else if (error.request) {
@@ -49,16 +53,16 @@ const ExcelUpload = () => {
                 }
             }
         };
-    
+
         fetchTemplatesData();
-    }, [userToken]);    
+    }, [userToken]);
 
     useEffect(() => {
         if (selectedTemplate) {
             const templateData = templates.find(template => template.templatename === selectedTemplate);
             if (templateData) {
                 setMaxRows(templateData.maxRows);
-                setCondition(templateData.headers.map(header => header.condition));
+                setCondition(templateData.headers.map(header => header.name));
             }
         }
     }, [selectedTemplate, templates]);
@@ -69,8 +73,13 @@ const ExcelUpload = () => {
         }
     }, [selectedTemplate]);
 
-    const handleFileChange = (e) => {
-        const selectedFile = e.target.files[0];
+    const { getRootProps, getInputProps } = useDropzone({
+        accept: '.xlsx, .xls',
+        onDrop: (acceptedFiles) => handleFileChange(acceptedFiles),
+    });
+
+    const handleFileChange = (acceptedFiles) => {
+        const selectedFile = acceptedFiles[0];
         setFile(selectedFile);
         setErrors([]);
         setSuccessMessage('');
@@ -78,6 +87,7 @@ const ExcelUpload = () => {
         setRows([]);
 
         if (selectedFile) {
+            setFileName(selectedFile.name);
             const fileType = selectedFile.name.split('.').pop().toLowerCase();
             if (fileType !== 'xlsx' && fileType !== 'xls') {
                 setErrors(['กรุณาเลือกไฟล์ Excel ที่มีนามสกุล .xlsx หรือ .xls']);
@@ -212,8 +222,8 @@ const ExcelUpload = () => {
         const calculationDetails = calculations.map(calculation => [
             calculation.expression,
             calculation.result
-        ]);     
-        
+        ]);
+
         const compareDetails = compares.map(compare => [
             compare.type,
             compare.addend,
@@ -264,7 +274,7 @@ const ExcelUpload = () => {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
 
-            <div className="max-w-md w-full mx-auto p-6 bg-white shadow-lg rounded-lg kanit-regular">
+            <div className="max-w-xl w-full mx-auto p-6 bg-white shadow-lg rounded-lg kanit-regular">
                 {isLoadingDialog && (
                     <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
                         <div className="bg-white p-6 rounded-lg flex flex-col items-center">
@@ -283,15 +293,20 @@ const ExcelUpload = () => {
                             id="template"
                             value={selectedTemplate}
                             onChange={(e) => setSelectedTemplate(e.target.value || "")}
-                            className="block w-full mt-1 text-sm border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 mb-2"
+                            className="block w-full p-3 pl-4 pr-10 border border-gray-300 rounded-md shadow-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 bg-white text-gray-700 text-lg transition-all duration-300 ease-in-out relative"
                         >
-                            <option value="">-- เลือกเทมเพลต --</option>
+                            <option value="" className="text-gray-500">-- เลือกเทมเพลต --</option>
                             {templates.map((template, index) => (
-                                <option key={index} value={template.templatename}>
+                                <option
+                                    key={index}
+                                    value={template.templatename}
+                                    className="text-gray-700 px-4 py-2 text-lg hover:bg-blue-100 focus:bg-blue-200 rounded-md transition-colors duration-200 ease-in-out font-kanit"
+                                >
                                     {template.templatename}
                                 </option>
                             ))}
                         </select>
+
                     </div>
                     {selectedTemplate && condition.length > 0 && (
                         <div className="mb-4">
@@ -360,19 +375,37 @@ const ExcelUpload = () => {
                     </div>
                 )}
 
-                <input
-                    type="file"
-                    accept=".xlsx, .xls"
-                    onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer mb-4 p-2"
-                />
+                <div className="mb-4">
+                    <div
+                        {...getRootProps()}
+                        className="block w-full border-2 border-dashed border-gray-300 rounded-md p-4 cursor-pointer text-gray-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    >
+                        <input {...getInputProps()} />
+                        <div className="flex flex-col items-center">
+                            {fileName ? (
+                                <>
+                                    <p className="text-center text-gray-700 font-medium">
+                                        <FontAwesomeIcon icon={faFileExcel} className="mr-2 text-gray-500" />
+                                        {fileName}
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-center text-gray-600 font-medium">
+                                        ลากไฟล์ .xlsx หรือ .xls มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์
+                                    </p>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
 
                 <button
                     onClick={selectedTemplate ? handleUploadWithTemplate : (uploadOption === 'withTopic' ? handleUploadHeader : handleUpload)}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-md shadow-md transition duration-300"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md shadow-md transition-transform transform hover:scale-105 duration-300"
                     disabled={isLoading}
                 >
-                    {isLoading ? 'กำลังอัปโหลด...' : 'อัปโหลดไฟล์'}
+                    {isLoading ? "กำลังอัปโหลด..." : "📤 อัปโหลดไฟล์"}
                 </button>
 
                 {errors.length > 0 ? (

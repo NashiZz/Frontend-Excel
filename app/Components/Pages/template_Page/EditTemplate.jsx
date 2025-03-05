@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlusCircle, faFileAlt, faArrowUp, faArrowDown } from '@fortawesome/free-solid-svg-icons';
+import { faPlusCircle, faFileAlt, faArrowUp, faArrowDown, faExclamationTriangle, faCheckCircle, faTimesCircle } from '@fortawesome/free-solid-svg-icons';
 import { updateTemplate } from "@/app/Service/templateService";
 
 const EditTemplate = () => {
@@ -31,6 +31,8 @@ const EditTemplate = () => {
     const [selectedFirstColumn, setSelectedFirstColumn] = useState('');
     const [selectedSecondColumn, setSelectedSecondColumn] = useState('');
     const [selectedCondition, setSelectedCondition] = useState('');
+    const [showConditionDialog, setShowConditionDialog] = useState(false);
+    const [changedHeaders, setChangedHeaders] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
 
     const conditions = [
@@ -53,7 +55,7 @@ const EditTemplate = () => {
 
     useEffect(() => {
         const changes = [];
-    
+
         headers.forEach((header) => {
             const isUsedInCalculation = calculationCondition.some(condition =>
                 condition.expression.includes(header.name)
@@ -64,22 +66,28 @@ const EditTemplate = () => {
             const isUsedInRelation = relationCondition.some(relation =>
                 relation.column1 === header.name || relation.column2 === header.name
             );
-    
+
             if (header.conditionChanged && (isUsedInCalculation || isUsedInComparison || isUsedInRelation)) {
                 changes.push(header.name);
             }
         });
-    
+
         if (changes.length > 0) {
-            const confirmDelete = window.confirm(`หัวข้อต่อไปนี้ถูกใช้ในเงื่อนไขอื่น: ${changes.join(", ")}\nต้องการลบเงื่อนไขที่เกี่ยวข้องหรือไม่?`);
-            if (confirmDelete) {
-                removeRelatedConditions(changes);
-            } else {
-                resetConditionChanged(changes);
-            }
+            setChangedHeaders(changes);
+            setShowConditionDialog(true);
         }
     }, [headers]);
-    
+
+    const handleConfirmDelete = () => {
+        removeRelatedConditions(changedHeaders);
+        setShowConditionDialog(false);
+    };
+
+    const handleCancelDelete = () => {
+        resetConditionChanged(changedHeaders);
+        setShowConditionDialog(false);
+    };
+
     const removeRelatedConditions = (changedHeaders) => {
         changedHeaders.forEach((headerName) => {
             calculationCondition.forEach((condition, index) => {
@@ -87,13 +95,13 @@ const EditTemplate = () => {
                     removeCalculationCondition(index);
                 }
             });
-    
+
             greaterLessCondition.forEach((condition, index) => {
                 if (condition.addend === headerName || condition.operand === headerName) {
                     removeCompare(index);
                 }
             });
-    
+
             relationCondition.forEach((relation, index) => {
                 if (relation.column1 === headerName || relation.column2 === headerName) {
                     removeRelationCondition(index);
@@ -101,16 +109,16 @@ const EditTemplate = () => {
             });
         });
     };
-    
+
     const resetConditionChanged = (changedHeaders) => {
         const updatedHeaders = [...headers];
         changedHeaders.forEach((headerName) => {
             const headerIndex = updatedHeaders.findIndex(header => header.name === headerName);
             if (headerIndex !== -1) {
-                updatedHeaders[headerIndex].conditionChanged = false; 
+                updatedHeaders[headerIndex].conditionChanged = false;
             }
         });
-        setHeaders(updatedHeaders); 
+        setHeaders(updatedHeaders);
     };
 
     useEffect(() => {
@@ -144,13 +152,13 @@ const EditTemplate = () => {
     const handleHeaderChange = (index, field, value) => {
         const updatedHeaders = [...headers];
         updatedHeaders[index][field] = value;
-        
+
         if (field === "condition") {
             updatedHeaders[index].conditionChanged = true;
         }
-    
+
         setHeaders(updatedHeaders);
-    };    
+    };
 
     const addHeader = () => {
         setHeaders([...headers, { name: "", condition: "" }]);
@@ -1181,6 +1189,35 @@ const EditTemplate = () => {
                     </div>
                 </div>
             )}
+
+            {showConditionDialog && (
+                <div className="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-120 shadow-lg text-center">
+                        <FontAwesomeIcon icon={faExclamationTriangle} className="text-yellow-500 text-4xl mb-4" />
+                        <h2 className="text-xl font-semibold mb-4">หัวข้อต่อไปนี้ถูกใช้ในเงื่อนไขอื่น</h2>
+                        <p className="text-lg text-blue-800">{changedHeaders.join(", ")}</p>
+                        <p className="text-gray-700 mt-2">ต้องการลบเงื่อนไขที่เกี่ยวข้องหรือไม่?</p>
+
+                        <div className="mt-6 flex justify-between gap-4">
+                            <button
+                                onClick={handleCancelDelete}
+                                className="flex items-center gap-2 bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+                            >
+                                <FontAwesomeIcon icon={faTimesCircle} />
+                                ยกเลิก
+                            </button>
+                            <button
+                                onClick={handleConfirmDelete}
+                                className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                            >
+                                <FontAwesomeIcon icon={faCheckCircle} />
+                                ลบเงื่อนไข
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 };
