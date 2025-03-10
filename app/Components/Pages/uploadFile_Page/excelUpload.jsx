@@ -24,6 +24,8 @@ const ExcelUpload = () => {
     const [templates, setTemplates] = useState([]);
     const [maxRows, setMaxRows] = useState(null);
     const [condition, setCondition] = useState([]);
+    const [isReviewOpen, setIsReviewOpen] = useState(false);
+    const [reviewData, setReviewData] = useState([]);
 
     useEffect(() => {
         const fetchTemplatesData = async () => {
@@ -85,6 +87,7 @@ const ExcelUpload = () => {
         setSuccessMessage('');
         setHeaders([]);
         setRows([]);
+        setReviewData([]);
 
         if (selectedFile) {
             setFileName(selectedFile.name);
@@ -107,7 +110,7 @@ const ExcelUpload = () => {
                     setHeaders(sheetData[0]);
 
                     const dataRows = sheetData.slice(1);
-
+                    setReviewData(dataRows);
                     if (dataRows.length > 0) {
                         console.log('จำนวนแถวข้อมูล:', dataRows.length);
 
@@ -256,7 +259,7 @@ const ExcelUpload = () => {
         setIsLoadingDialog(true);
 
         try {
-            await uploadExcelFileWithTemplate(file, conditions, calculationDetails, relationDetails, compareDetails, setErrors, setSuccessMessage);
+            await uploadExcelFileWithTemplate(file, conditions, calculationDetails, relationDetails, compareDetails, setErrors, setSuccessMessage, setIsReviewOpen);
             toast.success('🎉 อัปโหลดไฟล์สำเร็จ!', { position: 'bottom-right', autoClose: 3000 });
         } catch (error) {
             console.error('Error uploading file:', error);
@@ -269,6 +272,68 @@ const ExcelUpload = () => {
 
     const handleDownloadErrorReport = () => {
         downloadErrorReport(errors, headers, rows);
+    };
+
+    const handleSaveToBackend = async () => {
+        if (!reviewData || reviewData.length === 0) {
+            alert("ไม่มีข้อมูลให้บันทึก");
+            return;
+        }
+
+        if (!headers || headers.length === 0) {
+            alert("ไม่พบ headers ของข้อมูล");
+            return;
+        }
+
+        const selectedTemplateData = templates.find(template => template.templatename === selectedTemplate);
+
+        if (!selectedTemplateData) {
+            alert("ไม่พบข้อมูลเทมเพลตที่เลือก");
+            return;
+        }
+
+        const now = new Date().toISOString();
+
+        console.log("Template ID:", selectedTemplateData.template_id);
+        console.log("Headers:", headers);
+        console.log("Review Data:", reviewData);
+
+        // 🟢 แปลงข้อมูลให้เป็น JSON ตาม headers
+        const formattedRecords = reviewData.map(row => {
+            let record = {};
+            headers.forEach((header, index) => {
+                record[header] = row[index]; // กำหนดค่าแบบ Dynamic
+            });
+            return record;
+        });
+
+        const requestData = {
+            userToken: userToken,
+            templateId: selectedTemplateData.template_id,
+            uploadedAt: now,
+            updateAt: now,
+            records: formattedRecords
+        };
+
+        try {
+            const response = await fetch("http://localhost:8080/api/saveExcelData", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            if (response.ok) {
+                alert("บันทึกข้อมูลสำเร็จ!");
+                setIsReviewOpen(false);
+            } else {
+                alert("เกิดข้อผิดพลาดขณะบันทึกข้อมูล");
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์");
+        }
     };
 
     return (
@@ -400,6 +465,58 @@ const ExcelUpload = () => {
                     </div>
                 </div>
 
+                {isReviewOpen && (
+                    <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
+                        <div className="bg-white p-6 rounded-lg shadow-lg max-w-4xl w-full overflow-auto max-h-[80vh]">
+                            <h3 className="text-xl font-semibold mb-4">🔍 รีวิวข้อมูลจากไฟล์ Excel</h3>
+
+                            <div className="overflow-auto">
+                                <table className="w-full border-collapse border border-gray-300">
+                                    <thead>
+                                        <tr className="bg-gray-200">
+                                            {headers.map((header, index) => (
+                                                <th key={index} className="border border-gray-300 px-4 py-2 text-left">{header}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {reviewData.map((row, rowIndex) => (
+                                            <tr key={rowIndex} className="hover:bg-gray-100">
+                                                {row.map((cell, cellIndex) => (
+                                                    <td key={cellIndex} className="border border-gray-300 px-4 py-2">
+                                                        {cell || '-'}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="flex justify-between mt-6">
+                                <button
+                                    onClick={() => setIsReviewOpen(false)}
+                                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md"
+                                >
+                                    ยกเลิกการบันทึก
+                                </button>
+                                <button
+                                    onClick={handleSaveToBackend}
+                                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md"
+                                >
+                                    ✅ บันทึกเฉพาะข้อมูลใหม่
+                                </button>
+                                <button
+                                    onClick={handleSaveToBackend}
+                                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md"
+                                >
+                                    ✅ บันทึกข้อมูลใหม่และ อัปเดต ข้อมูลที่ซ้ำในระบบ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <button
                     onClick={selectedTemplate ? handleUploadWithTemplate : (uploadOption === 'withTopic' ? handleUploadHeader : handleUpload)}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md shadow-md transition-transform transform hover:scale-105 duration-300"
@@ -453,6 +570,15 @@ const ExcelUpload = () => {
                                     className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md"
                                 >
                                     ดาวน์โหลดรายงานข้อผิดพลาด
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setErrors([]);
+                                        setIsReviewOpen(true);
+                                    }}
+                                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md"
+                                >
+                                    หน้ารีวิวก่อนบันทึก
                                 </button>
                                 <button
                                     onClick={() => setErrors([])}
