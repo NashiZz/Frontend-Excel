@@ -25,7 +25,13 @@ const ExcelUpload = () => {
     const [maxRows, setMaxRows] = useState(null);
     const [condition, setCondition] = useState([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
+    const [passedCount, setPassedCount] = useState(0);
+    const [failedCount, setFailedCount] = useState(0);
     const [reviewData, setReviewData] = useState([]);
+    const [Data, setData] = useState([]);
+    const [newRecords, setNewRecords] = useState(0);
+    const [identicalRecords, setIdenticalRecords] = useState(0);
+    const [updatedRecords, setUpdatedRecords] = useState(0);
 
     useEffect(() => {
         const fetchTemplatesData = async () => {
@@ -76,7 +82,10 @@ const ExcelUpload = () => {
     }, [selectedTemplate]);
 
     const { getRootProps, getInputProps } = useDropzone({
-        accept: '.xlsx, .xls',
+        accept: {
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+            'application/vnd.ms-excel': ['.xls']
+        },
         onDrop: (acceptedFiles) => handleFileChange(acceptedFiles),
     });
 
@@ -274,6 +283,158 @@ const ExcelUpload = () => {
         downloadErrorReport(errors, headers, rows);
     };
 
+    const fetchExistingRecords = async (userToken) => {
+        const selectedTemplateData = templates.find(template => template.templatename === selectedTemplate);
+
+        console.log(selectedTemplateData.template_id);
+        console.log(userToken);
+
+
+        try {
+            const response = await fetch(`http://localhost:8080/api/checkExistingRecords?userToken=${userToken}&templateId=${selectedTemplateData.template_id}`);
+            const data = await response.json();
+            if (data.existingRecords) {
+                setData(data.existingRecords);
+                return data.existingRecords; // ส่งข้อมูลออกจากฟังก์ชัน
+            } else {
+                setData([]);
+                return [];
+            }
+        } catch (error) {
+            console.error('Error fetching existing records:', error);
+            toast.error("เกิดข้อผิดพลาดในการดึงข้อมูล");
+            return [];
+        }
+    };
+
+    const compareRecords = (existingRecords, reviewData) => {
+        let newRecords = [];    
+        let identicalRecords = []; 
+        let updatedRecords = [];   
+    
+        const existingRecordsMap = new Map();
+        existingRecords.forEach(record => {
+            const key = record["ชื่อ-นามสกุล"];
+            existingRecordsMap.set(key, record);
+        });
+    
+        console.log("🔥 Existing Records Map:", existingRecordsMap);
+    
+        reviewData.forEach(record => {
+            const key = record["ชื่อ-นามสกุล"];
+            console.log("keyData", key);
+            console.log("🔍 Checking Record:", key, record);
+    
+            if (existingRecordsMap.has(key)) {
+                const existingRecord = existingRecordsMap.get(key);
+                console.log("✅ Found in DB:", existingRecord);
+    
+                let isIdentical = true;
+    
+                // เปรียบเทียบฟิลด์ทีละตัว
+                Object.keys(record).forEach(field => {
+                    const reviewFieldValue = record[field];
+                    const existingFieldValue = existingRecord[field];
+    
+                    // ใช้ parseFloat เพื่อเปรียบเทียบตัวเลขที่อาจจะเป็นสตริงหรือมีจุดทศนิยม
+                    if (typeof reviewFieldValue === "number" || typeof existingFieldValue === "number") {
+                        if (parseFloat(reviewFieldValue) !== parseFloat(existingFieldValue)) {
+                            isIdentical = false;
+                        }
+                    } else {
+                        if (reviewFieldValue !== existingFieldValue) {
+                            isIdentical = false;
+                        }
+                    }
+                });
+    
+                if (isIdentical) {
+                    console.log("⚖️ Identical Record (No Changes)");
+                    identicalRecords.push(record);
+                } else {
+                    console.log("🔄 Updated Record (Data Changed)");
+                    updatedRecords.push(record); 
+                }
+            } else {
+                console.log("🆕 New Record (Not in DB)");
+                newRecords.push(record); 
+            }
+        });
+    
+        console.log("📊 Comparison Results:");
+        console.log("  ➡️ New Records:", newRecords.length);
+        console.log("  ➡️ Identical Records:", identicalRecords.length);
+        console.log("  ➡️ Updated Records:", updatedRecords.length);
+    
+        return {
+            newRecordsCount: newRecords.length,
+            identicalRecordsCount: identicalRecords.length,
+            updatedRecordsCount: updatedRecords.length,
+            newRecords,
+            identicalRecords,
+            updatedRecords
+        };
+    };    
+
+    const handleReviewPage = async () => {
+        setErrors([]);
+        setIsReviewOpen(true);
+        calculateValidationResults();
+    
+        if (selectedTemplate && userToken) {
+            const existingRecords = await fetchExistingRecords(userToken);
+            console.log("📌 Existing Records from DB:", existingRecords);
+
+            const formattedReviewData = reviewData.map(record => {
+                return headers.reduce((obj, header, index) => {
+                    obj[header] = record[index];
+                    return obj;
+                }, {});
+            });
+    
+            const comparisonResults = compareRecords(existingRecords, formattedReviewData);
+    
+            console.log("✅ New Records:", comparisonResults.newRecordsCount);
+            console.log("✅ Identical Records:", comparisonResults.identicalRecordsCount);
+            console.log("✅ Updated Records:", comparisonResults.updatedRecordsCount);
+    
+            setNewRecords(comparisonResults.newRecords);
+            setIdenticalRecords(comparisonResults.identicalRecords);
+            setUpdatedRecords(comparisonResults.updatedRecords);
+        }
+    };
+
+    const calculateValidationResults = () => {
+        let passedCount = 0;
+        let failedCount = 0;
+
+        const validErrors = errors
+            .flatMap(error => error.errorList ? error.errorList : [error])
+            .filter(error => error.row !== undefined && error.column !== undefined);
+
+        const errorRows = validErrors.map(error => error.row);
+        console.log('แถวที่ผิดพลาด:', errorRows);
+        console.log('จำนวนแถวใน reviewData:', reviewData.length);
+
+        reviewData.forEach((row, index) => {
+            if (errorRows.includes(index + 1)) {
+                failedCount++;
+            } else {
+                passedCount++;
+            }
+        });
+
+        console.log('จำนวนแถวที่ผ่านการตรวจสอบ:', passedCount);
+        console.log('จำนวนแถวที่ไม่ผ่านการตรวจสอบ:', failedCount);
+
+        setPassedCount(passedCount);
+        setFailedCount(failedCount);
+    };
+
+    const handleReviewClose = () => {
+        setIsReviewOpen(false);
+    };
+
     const handleSaveToBackend = async () => {
         if (!reviewData || reviewData.length === 0) {
             alert("ไม่มีข้อมูลให้บันทึก");
@@ -298,11 +459,10 @@ const ExcelUpload = () => {
         console.log("Headers:", headers);
         console.log("Review Data:", reviewData);
 
-        // 🟢 แปลงข้อมูลให้เป็น JSON ตาม headers
         const formattedRecords = reviewData.map(row => {
             let record = {};
             headers.forEach((header, index) => {
-                record[header] = row[index]; // กำหนดค่าแบบ Dynamic
+                record[header] = row[index];
             });
             return record;
         });
@@ -468,7 +628,13 @@ const ExcelUpload = () => {
                 {isReviewOpen && (
                     <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
                         <div className="bg-white p-6 rounded-lg shadow-lg max-w-4xl w-full overflow-auto max-h-[80vh]">
-                            <h3 className="text-xl font-semibold mb-4">🔍 รีวิวข้อมูลจากไฟล์ Excel</h3>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-semibold">🔍 รีวิวข้อมูลจากไฟล์ Excel</h3>
+                                <div className="text-right text-sm">
+                                    <p className="text-green-600 font-semibold">ข้อมูลที่ถูกต้อง: {passedCount} records</p>
+                                    <p className="text-red-600 font-semibold">ข้อมูลที่ผิดพลาด: {failedCount} records</p>
+                                </div>
+                            </div>
 
                             <div className="overflow-auto">
                                 <table className="w-full border-collapse border border-gray-300">
@@ -495,7 +661,7 @@ const ExcelUpload = () => {
 
                             <div className="flex justify-between mt-6">
                                 <button
-                                    onClick={() => setIsReviewOpen(false)}
+                                    onClick={handleReviewClose}
                                     className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md"
                                 >
                                     ยกเลิกการบันทึก
@@ -572,10 +738,7 @@ const ExcelUpload = () => {
                                     ดาวน์โหลดรายงานข้อผิดพลาด
                                 </button>
                                 <button
-                                    onClick={() => {
-                                        setErrors([]);
-                                        setIsReviewOpen(true);
-                                    }}
+                                    onClick={handleReviewPage}
                                     className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md"
                                 >
                                     หน้ารีวิวก่อนบันทึก
