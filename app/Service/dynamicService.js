@@ -59,7 +59,7 @@ export const uploadExcelFileWithHeader = async (file, header, setErrors, setSucc
     }
 };
 
-export const uploadExcelFileWithTemplate = async (file, condition, calculater, relation, compare, setErrors, setSuccessMessage, setIsReviewOpen) => {
+export const uploadExcelFileWithTemplate = async (file, condition, calculater, relation, compare, setErrors, setSuccessMessage, handleReviewPage) => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("condition", JSON.stringify(condition));
@@ -76,8 +76,7 @@ export const uploadExcelFileWithTemplate = async (file, condition, calculater, r
 
         if (response.status === 200) {
             setSuccessMessage("✅ อัปโหลดไฟล์สำเร็จ! ตรวจสอบข้อมูลเรียบร้อย ไม่มีข้อผิดพลาด");
-            setIsReviewOpen(true);
-            setErrors([]);
+            handleReviewPage();
         }
     } catch (error) {
         if (error.response) {
