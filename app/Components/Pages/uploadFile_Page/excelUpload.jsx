@@ -11,6 +11,7 @@ import { faFileAlt, faFileExcel } from '@fortawesome/free-solid-svg-icons';
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
     const [fileName, setFileName] = useState('');
+    const [DbName, setDbName] = useState("");
     const [headers, setHeaders] = useState([]);
     const [rows, setRows] = useState([]);
     const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
@@ -308,8 +309,6 @@ const ExcelUpload = () => {
 
     const compareRecords = (existingRecords, reviewData) => {
         const primaryKey = headers[0];
-        console.log("🔑 Primary Key:", primaryKey);
-
         let newRecords = [];
         let identicalRecords = [];
         let updatedRecords = [];
@@ -317,22 +316,19 @@ const ExcelUpload = () => {
         const existingRecordsMap = new Map();
         existingRecords.forEach(record => {
             const key = record[primaryKey];
-            console.log("keyData", key);
-
-            existingRecordsMap.set(key, record);
+            if (key) {
+                existingRecordsMap.set(key, {
+                    documentId: record.documentId,
+                    data: record
+                });
+            }
         });
-
-        console.log("🔥 Existing Records Map:", existingRecordsMap);
 
         reviewData.forEach(record => {
             const key = record[primaryKey];
-            console.log("keyData", key);
-            console.log("🔍 Checking Record:", key, record);
 
             if (existingRecordsMap.has(key)) {
-                const existingRecord = existingRecordsMap.get(key);
-                console.log("✅ Found in DB:", existingRecord);
-
+                const { documentId, data: existingRecord } = existingRecordsMap.get(key);
                 let isIdentical = true;
 
                 Object.keys(record).forEach(field => {
@@ -351,14 +347,11 @@ const ExcelUpload = () => {
                 });
 
                 if (isIdentical) {
-                    console.log("⚖️ Identical Record (No Changes)");
                     identicalRecords.push(record);
                 } else {
-                    console.log("🔄 Updated Record (Data Changed)");
-                    updatedRecords.push(record);
+                    updatedRecords.push({ ...record, documentId });
                 }
             } else {
-                console.log("🆕 New Record (Not in DB)");
                 newRecords.push(record);
             }
         });
@@ -368,7 +361,6 @@ const ExcelUpload = () => {
         console.log("  ➡️ ข้อมูลใหม่:", newRecords.length);
         console.log("  ➡️ ข้อมูลที่มีอยู่ในระบบ:", existingRecordsCount);
         console.log("     ➡️ ข้อมูลซ้ำไม่มีความแตกต่าง:", identicalRecords.length);
-        console.log("     ➡️ ข้อมูลซ้ำมีความแตกต่าง:", updatedRecords.length);
 
         return {
             newRecordsCount: newRecords.length,
@@ -382,13 +374,11 @@ const ExcelUpload = () => {
     };
 
     const handleReviewPage = async () => {
-        console.log(reviewData);
         setErrors([]);
         calculateValidationResults();
 
         if (selectedTemplate && userToken) {
             const existingRecords = await fetchExistingRecords(userToken);
-            console.log("📌 Existing Records from DB:", existingRecords);
 
             const formattedReviewData = reviewData.map(record => {
                 return headers.reduce((obj, header, index) => {
@@ -419,8 +409,6 @@ const ExcelUpload = () => {
             .filter(error => error.row !== undefined && error.column !== undefined);
 
         const errorRows = validErrors.map(error => error.row);
-        console.log('แถวที่ผิดพลาด:', errorRows);
-        console.log('จำนวนแถวใน reviewData:', reviewData.length);
 
         reviewData.forEach((row, index) => {
             if (errorRows.includes(index + 1)) {
@@ -429,9 +417,6 @@ const ExcelUpload = () => {
                 passedCount++;
             }
         });
-
-        console.log('จำนวนแถวที่ผ่านการตรวจสอบ:', passedCount);
-        console.log('จำนวนแถวที่ไม่ผ่านการตรวจสอบ:', failedCount);
 
         setPassedCount(passedCount);
         setFailedCount(failedCount);
@@ -446,6 +431,75 @@ const ExcelUpload = () => {
             alert("ไม่มีข้อมูลให้บันทึก");
             return;
         }
+    
+        if (!headers || headers.length === 0) {
+            alert("ไม่พบ headers ของข้อมูล");
+            return;
+        }
+    
+        if (!DbName.trim()) {
+            alert("กรุณากรอกชื่อไฟล์ก่อนบันทึก");
+            return;
+        }
+    
+        const selectedTemplateData = templates.find(template => template.templatename === selectedTemplate);
+    
+        if (!selectedTemplateData) {
+            alert("ไม่พบข้อมูลเทมเพลตที่เลือก");
+            return;
+        }
+    
+        const now = new Date().toISOString();
+    
+        console.log("Template ID:", selectedTemplateData.template_id);
+        console.log("Headers:", headers);
+        console.log("Review Data:", reviewData);
+        console.log("File Name:", DbName);
+    
+        const formattedRecords = reviewData.map(row => {
+            let record = {};
+            headers.forEach((header, index) => {
+                record[header] = row[index];
+            });
+            return record;
+        });
+    
+        const requestData = {
+            userToken: userToken,
+            templateId: selectedTemplateData.template_id,
+            uploadedAt: now,
+            updateAt: now,
+            fileName: DbName, 
+            records: formattedRecords
+        };
+    
+        try {
+            const response = await fetch("http://localhost:8080/api/saveExcelData", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(requestData)
+            });
+    
+            if (response.ok) {
+                alert(`บันทึกข้อมูลสำเร็จ! ไฟล์: ${fileName}`);
+                setIsReviewOpen(false);
+            } else {
+                alert("เกิดข้อผิดพลาดขณะบันทึกข้อมูล");
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์");
+        }
+    };
+
+    const handleSaveNewAndUpdateRecords = async () => {
+
+        if ((!newDatas || newDatas.length === 0) && (!updateDatas || updateDatas.length === 0)) {
+            alert("ไม่มีข้อมูลให้บันทึกหรืออัปเดต");
+            return;
+        }
 
         if (!headers || headers.length === 0) {
             alert("ไม่พบ headers ของข้อมูล");
@@ -460,29 +514,36 @@ const ExcelUpload = () => {
         }
 
         const now = new Date().toISOString();
-
-        console.log("Template ID:", selectedTemplateData.template_id);
-        console.log("Headers:", headers);
-        console.log("Review Data:", reviewData);
-
-        const formattedRecords = reviewData.map(row => {
+        const formattedNewRecords = newDatas.map(row => {
             let record = {};
-            headers.forEach((header, index) => {
-                record[header] = row[index];
+            headers.forEach((header) => {
+                record[header] = row[header] !== undefined ? row[header] : "";
             });
+            return record;
+        });
+
+        const formattedUpdatedRecords = updateDatas.map(row => {
+            let record = {};
+            headers.forEach((header) => {
+                record[header] = row[header] !== undefined ? row[header] : "";
+            });
+
+            if (row.documentId) {
+                record.documentId = row.documentId;
+            }
+
             return record;
         });
 
         const requestData = {
             userToken: userToken,
             templateId: selectedTemplateData.template_id,
-            uploadedAt: now,
             updateAt: now,
-            records: formattedRecords
+            records: [...formattedNewRecords, ...formattedUpdatedRecords]
         };
 
         try {
-            const response = await fetch("http://localhost:8080/api/saveExcelData", {
+            const response = await fetch("http://localhost:8080/api/saveNewUpdate", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -502,82 +563,8 @@ const ExcelUpload = () => {
         }
     };
 
-    // ฟังก์ชันการบันทึกข้อมูลใหม่และอัปเดตข้อมูลที่ซ้ำ
-    const handleSaveNewAndUpdateRecords = async () => {
-        
-        if ((!newDatas || newDatas.length === 0) && (!updateDatas || updateDatas.length === 0)) {
-            alert("ไม่มีข้อมูลให้บันทึกหรืออัปเดต");
-            return;
-        }
-    
-        if (!headers || headers.length === 0) {
-            alert("ไม่พบ headers ของข้อมูล");
-            return;
-        }
-    
-        const selectedTemplateData = templates.find(template => template.templatename === selectedTemplate);
-    
-        if (!selectedTemplateData) {
-            alert("ไม่พบข้อมูลเทมเพลตที่เลือก");
-            return;
-        }
-    
-        const now = new Date().toISOString();
-    
-        console.log("Template ID:", selectedTemplateData.template_id);
-        console.log("Headers:", headers);
-        console.log("New Records:", newDatas);
-        console.log("Updated Records:", updateDatas);
-    
-        const formattedNewRecords = newDatas.map(row => {
-            let record = {};
-            headers.forEach((header) => {
-                record[header] = row[header] !== undefined ? row[header] : ""; 
-            });
-            return record;
-        });   
-    
-        const formattedUpdatedRecords = updateDatas.map(row => {
-            let record = {};
-            headers.forEach((header) => {
-                record[header] = row[header] !== undefined ? row[header] : ""; 
-            });
-            return record;
-        });
-
-        console.log("🔥 Formatted New Records:", formattedNewRecords);
-        console.log("🔥 Formatted Updated Records:", formattedUpdatedRecords);
-        
-        const requestData = {
-            userToken: userToken,
-            templateId: selectedTemplateData.template_id,
-            updateAt: now,
-            records: [...formattedNewRecords, ...formattedUpdatedRecords] 
-        };
-    
-        try {
-            const response = await fetch("http://localhost:8080/api/saveNewUpdate", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(requestData)
-            });
-    
-            if (response.ok) {
-                alert("บันทึกข้อมูลสำเร็จ!");
-                setIsReviewOpen(false);
-            } else {
-                alert("เกิดข้อผิดพลาดขณะบันทึกข้อมูล");
-            }
-        } catch (error) {
-            console.error("Error:", error);
-            alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์");
-        }
-    };    
-
     const handleSaveToBackendUpdate = () => {
-        handleSaveNewAndUpdateRecords(); 
+        handleSaveNewAndUpdateRecords();
     };
 
     return (
@@ -775,6 +762,17 @@ const ExcelUpload = () => {
                                         <p className="ml-2">{`ข้อมูลที่ไม่ผ่านการตรวจสอบ: ${failedCount} records`}</p>
                                     </div>
                                 </div>
+                            </div>
+
+                            <div className='mt-4'>
+                                <p className="ml-2">กรอกชื่อไฟล์ก่อนบันทึก</p>
+                                <input
+                                    type="text"
+                                    value={DbName}
+                                    onChange={(e) => setDbName(e.target.value)}
+                                    placeholder="กรอกชื่อไฟล์ที่ต้องการบันทึก"
+                                    className="border border-gray-300 rounded-md px-4 py-2 mt-2 w-full"
+                                />
                             </div>
 
                             <div className="flex justify-between mt-6">

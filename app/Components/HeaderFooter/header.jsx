@@ -1,7 +1,7 @@
 "use client";
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFileAlt } from '@fortawesome/free-solid-svg-icons';
+import { faFileAlt, faFileExcel } from '@fortawesome/free-solid-svg-icons';
 import { Link } from 'react-router';
 import { useState } from "react";
 
@@ -33,6 +33,9 @@ function Header() {
                     </a>
                     <Link to="/template" className="hover:text-blue-300 flex items-center">
                         <FontAwesomeIcon icon={faFileAlt} className="mr-2" /> เทมเพลต
+                    </Link>
+                    <Link to="/exceldata" className="hover:text-blue-300 flex items-center">
+                        <FontAwesomeIcon icon={faFileExcel} className="mr-2" /> ข้อมูล Excel
                     </Link>
                     <a href="#about" className="hover:text-blue-300 flex items-center">
                         <i className="fas fa-info-circle mr-2"></i> คำแนะนำการใช้งาน
