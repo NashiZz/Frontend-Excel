@@ -5,51 +5,84 @@ import { saveAs } from 'file-saver';
 const ExcelData = () => {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [templateIDs, setTemplateIDs] = useState([]);
   const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
 
   useEffect(() => {
-    const fetchFiles = async () => {
+    const fetchTemplates = async () => {
       if (!userToken) {
-        console.error("User token is missing");
-        setLoading(false);
+        console.error("❌ User token is missing");
         return;
       }
 
       try {
-        console.log("Fetching data for userToken:", userToken);
+        console.log("Fetching templates for userToken:", userToken);
 
-        const response = await fetch(`http://localhost:8080/api/getUploadedFiles?userToken=${userToken}`);
+        const response = await fetch(`http://localhost:8080/api/save/templates/${userToken}`);
 
         if (!response.ok) {
-          throw new Error("เกิดข้อผิดพลาดในการดึงข้อมูล");
+          throw new Error("เกิดข้อผิดพลาดในการดึงข้อมูล Template");
         }
 
         const data = await response.json();
-        
-        if (data && data.files) {
-          setFiles(data.files); 
+
+        if (data && data.templates) {
+          const ids = data.templates.map((template) => template.template_id);
+          setTemplateIDs(ids);
         } else {
-          setFiles([]); 
+          setTemplateIDs([]);
         }
       } catch (error) {
-        console.error("Error fetching files:", error);
-      } finally {
+        console.error("⚠ Error fetching templates:", error);
+      }
+    };
+
+    fetchTemplates();
+  }, [userToken]);
+
+  useEffect(() => {
+    const fetchFiles = async () => {
+      if (!userToken || templateIDs.length === 0) return;
+
+      try {
+        console.log("Fetching uploaded files for:", userToken, "Templates:", templateIDs);
+
+        const response = await fetch(`http://localhost:8080/api/getUploadedFiles`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userToken, templateIDs })
+        });
+
+        if (!response.ok) {
+          throw new Error("เกิดข้อผิดพลาดในการดึงไฟล์");
+        }
+
+        const data = await response.json();
+
+        const extractedFiles = data.files.map(file => file.file_details);
+        console.log("Extracted files:", extractedFiles);
+
+
+        setFiles(extractedFiles);
         setLoading(false);
+      } catch (error) {
+        console.error("⚠ Error fetching files:", error);
       }
     };
 
     fetchFiles();
-  }, [userToken]);
+  }, [userToken, templateIDs]);
 
-  const downloadExcel = async (fileName) => {
+  const downloadExcel = async (fileName, templateId) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/exportExcel?userToken=${userToken}&docName=${fileName}`);
+      const response = await fetch(`http://localhost:8080/api/exportExcel?userToken=${userToken}&docName=${fileName}&templateId=${templateId}`);
+
       if (!response.ok) {
         throw new Error('ไม่สามารถดาวน์โหลดไฟล์ได้');
       }
 
-      const blob = await response.blob();  // แปลงข้อมูลที่รับมาเป็น Blob
-      saveAs(blob, `${fileName}.xlsx`);  // ใช้ FileSaver.js ในการดาวน์โหลด
+      const blob = await response.blob();
+      saveAs(blob, `${fileName}.xlsx`);
     } catch (error) {
       console.error('Error downloading file:', error);
     }
@@ -71,13 +104,10 @@ const ExcelData = () => {
             files.map((file, index) => (
               <div key={index} className="p-4 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all">
                 <div className="flex flex-col items-center">
-                  {/* แสดงชื่อไฟล์ */}
                   <p className="text-lg font-semibold">{file.file_name}</p>
-                  {/* แสดงวันที่และเวลาที่อัปโหลด */}
                   <p className="text-sm text-gray-500">🕒 {new Date(file.uploaded_at).toLocaleString()}</p>
-                  {/* ปุ่มดาวน์โหลด */}
                   <button
-                    onClick={() => downloadExcel(file.file_name)}
+                    onClick={() => downloadExcel(file.file_name, file.template_id)}
                     className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
                   >
                     ดาวน์โหลดไฟล์ Excel
