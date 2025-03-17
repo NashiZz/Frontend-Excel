@@ -17,6 +17,7 @@ const ExcelUpload = () => {
     const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
     const [errors, setErrors] = useState([]);
     const [successMessage, setSuccessMessage] = useState('');
+    const [showErrorModal, setShowErrorModal] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingDialog, setIsLoadingDialog] = useState(false);
     const [uploadOption, setUploadOption] = useState('noTopic');
@@ -268,11 +269,12 @@ const ExcelUpload = () => {
         }
 
         setSuccessMessage("");
+        setShowErrorModal(false);
         setIsLoading(true);
         setIsLoadingDialog(true);
 
         try {
-            await uploadExcelFileWithTemplate(file, conditions, calculationDetails, relationDetails, compareDetails, setErrors, setSuccessMessage, handleReviewPage);
+            await uploadExcelFileWithTemplate(file, conditions, calculationDetails, relationDetails, compareDetails, setErrors, setSuccessMessage, handleReviewPage, setShowErrorModal);
             toast.success('🎉 อัปโหลดไฟล์สำเร็จ!', { position: 'bottom-right', autoClose: 3000 });
         } catch (error) {
             console.error('Error uploading file:', error);
@@ -308,14 +310,19 @@ const ExcelUpload = () => {
     };
 
     const compareRecords = (existingRecords, reviewData) => {
-        const primaryKey = headers[0];
+        const citizenIdKey = headers.find(header =>
+            /บัตรประชาชน|citizen[_]?id/i.test(header)
+        );
+
         let newRecords = [];
         let identicalRecords = [];
         let updatedRecords = [];
 
         const existingRecordsMap = new Map();
         existingRecords.forEach(record => {
-            const key = record[primaryKey];
+            const key = record[citizenIdKey];
+            console.log('ExKey', key);
+
             if (key) {
                 existingRecordsMap.set(key, {
                     documentId: record.documentId,
@@ -325,7 +332,8 @@ const ExcelUpload = () => {
         });
 
         reviewData.forEach(record => {
-            const key = record[primaryKey];
+            const key = record[citizenIdKey];
+            console.log('ReKey', key);
 
             if (existingRecordsMap.has(key)) {
                 const { documentId, data: existingRecord } = existingRecordsMap.get(key);
@@ -355,12 +363,14 @@ const ExcelUpload = () => {
                 newRecords.push(record);
             }
         });
+
         const existingRecordsCount = identicalRecords.length + updatedRecords.length;
 
         console.log("📊 Comparison Results:");
         console.log("  ➡️ ข้อมูลใหม่:", newRecords.length);
         console.log("  ➡️ ข้อมูลที่มีอยู่ในระบบ:", existingRecordsCount);
         console.log("     ➡️ ข้อมูลซ้ำไม่มีความแตกต่าง:", identicalRecords.length);
+        console.log("     ➡️ ข้อมูลซ้ำมีความแตกต่าง:", updatedRecords.length);
 
         return {
             newRecordsCount: newRecords.length,
@@ -369,12 +379,12 @@ const ExcelUpload = () => {
             updatedRecordsCount: updatedRecords.length,
             newRecords,
             identicalRecords,
-            updatedRecords
+            updatedRecords,
         };
     };
 
     const handleReviewPage = async () => {
-        setErrors([]);
+        setShowErrorModal(false);
         calculateValidationResults();
 
         if (selectedTemplate && userToken) {
@@ -431,60 +441,101 @@ const ExcelUpload = () => {
             alert("ไม่มีข้อมูลให้บันทึก");
             return;
         }
-    
+
         if (!headers || headers.length === 0) {
             alert("ไม่พบ headers ของข้อมูล");
             return;
         }
-    
-        if (!DbName.trim()) {
-            alert("กรุณากรอกชื่อไฟล์ก่อนบันทึก");
-            return;
-        }
-    
+
         const selectedTemplateData = templates.find(template => template.templatename === selectedTemplate);
-    
         if (!selectedTemplateData) {
             alert("ไม่พบข้อมูลเทมเพลตที่เลือก");
             return;
         }
-    
+
         const now = new Date().toISOString();
-    
-        console.log("Template ID:", selectedTemplateData.template_id);
-        console.log("Headers:", headers);
-        console.log("Review Data:", reviewData);
-        console.log("File Name:", DbName);
-    
-        const formattedRecords = reviewData.map(row => {
-            let record = {};
-            headers.forEach((header, index) => {
-                record[header] = row[index];
+        const invalidRows = new Set();
+
+        if (errors && errors.length > 0 && errors[0].errorList) {
+            errors[0].errorList.forEach(error => {
+                invalidRows.add(error.row - 1);
+                console.log(`แถวที่ ${error.row} มีข้อผิดพลาด: ${error.message}`);
             });
-            return record;
-        });
-    
-        const requestData = {
-            userToken: userToken,
-            templateId: selectedTemplateData.template_id,
-            uploadedAt: now,
-            updateAt: now,
-            fileName: DbName, 
-            records: formattedRecords
-        };
-    
+        }
+
+        const validRows = reviewData.filter((row, index) => !invalidRows.has(index));
+
+        if (validRows.length === 0) {
+            alert("ไม่มีข้อมูลที่ผ่านการตรวจสอบความถูกต้อง");
+            return;
+        }
+
         try {
-            const response = await fetch("http://localhost:8080/api/saveExcelData", {
+            const checkResponse = await fetch(
+                `http://localhost:8080/api/checkFileExists?templateId=${selectedTemplateData.template_id}&userToken=${userToken}`
+            );
+            const { exists, fileName: existingFileName } = await checkResponse.json();
+
+            let fileNameToSave = existingFileName;
+
+            if (!exists) {
+                fileNameToSave = prompt("กรุณากรอกชื่อไฟล์ที่ต้องการบันทึก:");
+                if (!fileNameToSave) {
+                    alert("ต้องระบุชื่อไฟล์ก่อนบันทึก");
+                    return;
+                }
+            } else {
+                const confirmSave = confirm(
+                    `พบไฟล์ที่มีชื่อ "${existingFileName}" อยู่แล้ว ต้องการเพิ่มข้อมูลใหม่เข้าไปหรือไม่?`
+                );
+                if (!confirmSave) {
+                    return;
+                }
+            }
+
+            const formattedRecords = exists
+                ? newDatas.map(row => {
+                    let record = {};
+                    headers.forEach((header) => {
+                        record[header] = row[header] !== undefined ? row[header] : "";
+                    });
+                    return record;
+                })
+                : validRows.map(row => {
+                    let record = {};
+                    headers.forEach((header, index) => {
+                        record[header] = row[index];
+                    });
+                    return record;
+                });
+
+            if (formattedRecords.length === 0) {
+                alert("ไม่มีข้อมูลใหม่ให้เพิ่ม");
+                return;
+            }
+
+            console.log('format', formattedRecords);
+
+
+            const requestData = {
+                userToken,
+                templateId: selectedTemplateData.template_id,
+                fileName: fileNameToSave,
+                uploadedAt: now,
+                updateAt: now,
+                records: formattedRecords
+            };
+
+            const saveResponse = await fetch("http://localhost:8080/api/saveExcelData", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(requestData)
             });
-    
-            if (response.ok) {
-                alert(`บันทึกข้อมูลสำเร็จ! ไฟล์: ${fileName}`);
+
+            if (saveResponse.ok) {
+                alert(`บันทึกข้อมูลสำเร็จ! ไฟล์: ${fileNameToSave}`);
                 setIsReviewOpen(false);
+                setErrors([]);
             } else {
                 alert("เกิดข้อผิดพลาดขณะบันทึกข้อมูล");
             }
@@ -764,17 +815,6 @@ const ExcelUpload = () => {
                                 </div>
                             </div>
 
-                            <div className='mt-4'>
-                                <p className="ml-2">กรอกชื่อไฟล์ก่อนบันทึก</p>
-                                <input
-                                    type="text"
-                                    value={DbName}
-                                    onChange={(e) => setDbName(e.target.value)}
-                                    placeholder="กรอกชื่อไฟล์ที่ต้องการบันทึก"
-                                    className="border border-gray-300 rounded-md px-4 py-2 mt-2 w-full"
-                                />
-                            </div>
-
                             <div className="flex justify-between mt-6">
                                 <button
                                     onClick={handleReviewClose}
@@ -807,7 +847,7 @@ const ExcelUpload = () => {
                     {isLoading ? "กำลังอัปโหลด..." : "📤 อัปโหลดไฟล์"}
                 </button>
 
-                {errors.length > 0 ? (
+                {showErrorModal ? (
                     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
                         <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-lg p-6">
                             <h4 className="font-semibold text-lg mb-4 flex items-center text-red-600">
@@ -860,7 +900,7 @@ const ExcelUpload = () => {
                                     หน้ารีวิวก่อนบันทึก
                                 </button>
                                 <button
-                                    onClick={() => setErrors([])}
+                                    onClick={() => setShowErrorModal(false)}
                                     className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md"
                                 >
                                     ปิด

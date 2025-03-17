@@ -11,7 +11,7 @@ const ExcelData = () => {
   useEffect(() => {
     const fetchTemplates = async () => {
       if (!userToken) {
-        console.error("❌ User token is missing");
+        console.error("User token is missing");
         return;
       }
 
@@ -33,7 +33,7 @@ const ExcelData = () => {
           setTemplateIDs([]);
         }
       } catch (error) {
-        console.error("⚠ Error fetching templates:", error);
+        console.error("Error fetching templates:", error);
       }
     };
 
@@ -66,27 +66,66 @@ const ExcelData = () => {
         setFiles(extractedFiles);
         setLoading(false);
       } catch (error) {
-        console.error("⚠ Error fetching files:", error);
+        console.error("Error fetching files:", error);
       }
     };
 
     fetchFiles();
   }, [userToken, templateIDs]);
 
-  const downloadExcel = async (fileName, templateId) => {
+  const fetchTemplates = async (userToken) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/exportExcel?userToken=${userToken}&docName=${fileName}&templateId=${templateId}`);
+      const response = await fetch(`http://localhost:8080/api/save/templates/${userToken}`);
+      const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error('ไม่สามารถดาวน์โหลดไฟล์ได้');
+      if (data.error) {
+        console.error("Error fetching templates:", data.error);
+        return [];
       }
 
-      const blob = await response.blob();
-      saveAs(blob, `${fileName}.xlsx`);
+      return data;
     } catch (error) {
-      console.error('Error downloading file:', error);
+      console.error("Error fetching templates:", error);
+      return [];
     }
   };
+
+  const downloadExcel = async (fileName, templateId) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/save/templates/${userToken}`);
+      const data = await response.json();
+
+      if (!data || !data.templates) {
+        console.error("ไม่พบข้อมูล templates");
+        return;
+      }
+
+      const selectedTemplate = data.templates.find(template => template.template_id === templateId);
+      if (!selectedTemplate) {
+        console.error("ไม่พบ Template ที่ต้องการ");
+        return;
+      }
+
+      const orderedHeaders = selectedTemplate.headers.map(header => header.name);
+      console.log("Headers ที่เรียงแล้ว:", orderedHeaders);
+
+      const exportResponse = await fetch(`http://localhost:8080/api/exportExcel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userToken, fileName, templateId, orderedHeaders })
+      });
+
+      if (!exportResponse.ok) {
+        throw new Error("ไม่สามารถดาวน์โหลดไฟล์ได้");
+      }
+
+      const blob = await exportResponse.blob();
+      saveAs(blob, `${fileName}.xlsx`);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+    }
+  };
+
 
   return (
     <div className="container mx-auto p-6 mt-28">

@@ -59,7 +59,7 @@ export const uploadExcelFileWithHeader = async (file, header, setErrors, setSucc
     }
 };
 
-export const uploadExcelFileWithTemplate = async (file, condition, calculater, relation, compare, setErrors, setSuccessMessage, handleReviewPage) => {
+export const uploadExcelFileWithTemplate = async (file, condition, calculater, relation, compare, setErrors, setSuccessMessage, handleReviewPage, setShowErrorModal) => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("condition", JSON.stringify(condition));
@@ -93,6 +93,7 @@ export const uploadExcelFileWithTemplate = async (file, condition, calculater, r
             console.error("Error:", error.message);
             setErrors(["❌ เกิดข้อผิดพลาดในการอัปโหลดไฟล์"]);
         }
+        setShowErrorModal(true);
     }
 };
 
