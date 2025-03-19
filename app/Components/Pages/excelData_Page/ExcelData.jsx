@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { downloadExcelFile, fetchTemplates, fetchUploadedFiles } from "@/app/Service/excelDataService";
+import { downloadExcelFile, fetchTemplateData, fetchUploadedFiles } from "@/app/Service/excelDataService";
 
 const ExcelData = () => {
   const [files, setFiles] = useState([]);
@@ -16,7 +16,7 @@ const ExcelData = () => {
         return;
       }
 
-      const data = await fetchTemplates(userToken);
+      const data = await fetchTemplateData(userToken);
       if (data.templates) {
         setTemplateIDs(data.templates.map(template => template.template_id));
       }

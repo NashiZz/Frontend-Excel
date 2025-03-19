@@ -7,7 +7,8 @@ import { downloadErrorReport } from './excelErrorReport';
 import { fetchTemplates } from '@/app/Service/templateService';
 import { useDropzone } from 'react-dropzone';
 import { faFileAlt, faFileExcel } from '@fortawesome/free-solid-svg-icons';
-import { checkFileExists, fetchExistingRecords, saveExcelData, saveNewAndUpdateRecords } from '@/app/Service/excelDataService';
+import { checkFileExists, fetchExistingRecords, fetchTemplateData, saveExcelData, saveNewAndUpdateRecords } from '@/app/Service/excelDataService';
+import axios from 'axios';
 
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
@@ -304,12 +305,12 @@ const ExcelUpload = () => {
         const citizenIdKey = headers.find(header =>
             /บัตรประชาชน|citizen[_]?id/i.test(header)
         );
-    
+
         let newRecords = [];
         let identicalRecords = [];
         let updatedRecords = [];
         let identicalRecordsWithComparison = [];
-    
+
         const existingRecordsMap = new Map();
         existingRecords.forEach(record => {
             const key = record[citizenIdKey];
@@ -320,20 +321,19 @@ const ExcelUpload = () => {
                 });
             }
         });
-    
+
         reviewData.forEach(record => {
             const key = record[citizenIdKey];
-    
+
             if (existingRecordsMap.has(key)) {
                 const { documentId, data: existingRecord } = existingRecordsMap.get(key);
                 let isIdentical = true;
                 let differences = {};
-    
-                // เปรียบเทียบข้อมูลทั้งหมดของแถว
+
                 Object.keys(record).forEach(field => {
                     const reviewFieldValue = record[field];
                     const existingFieldValue = existingRecord[field];
-    
+
                     if (reviewFieldValue !== existingFieldValue) {
                         isIdentical = false;
                         differences[field] = {
@@ -342,14 +342,14 @@ const ExcelUpload = () => {
                         };
                     }
                 });
-    
+
                 if (isIdentical) {
                     identicalRecords.push(record);
                     identicalRecordsWithComparison.push({
                         citizenId: key,
                         existingData: existingRecord,
                         newData: record,
-                        differences: {}  
+                        differences: {}
                     });
                 } else {
                     updatedRecords.push({ ...record, documentId });
@@ -364,7 +364,7 @@ const ExcelUpload = () => {
                 newRecords.push(record);
             }
         });
-    
+
         return {
             newRecordsCount: newRecords.length,
             existingRecordsCount: identicalRecords.length + updatedRecords.length,
@@ -375,36 +375,62 @@ const ExcelUpload = () => {
             updatedRecords,
             identicalRecordsWithComparison
         };
-    };    
+    };
 
-    const exportIdenticalRecords = () => {
+    const exportIdenticalRecords = async () => {
         if (!identicalRecordsWithComparison || identicalRecordsWithComparison.length === 0) {
             toast.error("ไม่มีข้อมูลที่ซ้ำเพื่อส่งออก");
             return;
         }
-
-        const headers = ["Citizen ID", "Existing Data", "Review Data"];
-        const rows = [];
     
-        identicalRecordsWithComparison.forEach(record => {
-            const existingDataValues = Object.values(record.existingData).map(value => value || "-").join(", ");
-            const newDataValues = Object.values(record.newData).map(value => value || "-").join(", ");
-
-            rows.push([
-                record.citizenId,
-                existingDataValues,
-                newDataValues
-            ]);
-        });
-
-        const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, worksheet, "Identical Records");
-
-        XLSX.writeFile(wb, "identical_records_comparison.xlsx");
+        if (!userToken || !selectedTemplate) {
+            toast.error("ข้อมูลเทมเพลตไม่ครบ");
+            return;
+        }
+    
+        try {
+            const { templates } = await fetchTemplateData(userToken);
+            const selectedTemplateData = templates.find(template => template.templatename === selectedTemplate);
+    
+            if (!selectedTemplateData) {
+                toast.error("ไม่พบข้อมูลเทมเพลต");
+                return;
+            }
+    
+            const orderedHeaders = selectedTemplateData.headers.map(header => header.name);
+    
+            const requestData = {
+                identicalRecords: identicalRecordsWithComparison,
+                headers: orderedHeaders,
+            };
+    
+            console.log("📤 ส่ง requestData ไป Backend:", requestData);
+    
+            const response = await axios.post("http://localhost:8080/api/export-excel", requestData, {
+                responseType: "blob",
+                headers: {
+                    Authorization: `Bearer ${userToken}`,
+                    "Content-Type": "application/json",
+                },
+            });
+    
+            if (response.status === 200) {
+                const url = window.URL.createObjectURL(new Blob([response.data]));
+                const link = document.createElement("a");
+                link.href = url;
+                link.setAttribute("download", "identical_records_comparison.xlsx");
+                document.body.appendChild(link);
+                link.click();
+                toast.success("ส่งออกสำเร็จ!");
+            } else {
+                toast.error("เกิดข้อผิดพลาดในการส่งออกไฟล์");
+            }
+        } catch (error) {
+            console.error("❌ Error exporting identical records:", error.response?.data || error.message);
+            toast.error("เกิดข้อผิดพลาดในการส่งออกไฟล์");
+        }
     };    
-
+        
     const handleReviewPage = async () => {
         setIsLoadingReview(true);
         setShowErrorModal(false);
@@ -468,9 +494,9 @@ const ExcelUpload = () => {
     };
 
     const handleReviewClose = () => {
-        setErrors([]);
         setSuccessMessage('');
         setIsReviewOpen(false);
+        setErrors([]);
     };
 
     const handleSaveToBackend = async () => {
@@ -597,6 +623,7 @@ const ExcelUpload = () => {
 
         handleSaveNewAndUpdateRecords().finally(() => {
             setIsLoadingSave(false);
+            setErrors([]);
         });
     };
 

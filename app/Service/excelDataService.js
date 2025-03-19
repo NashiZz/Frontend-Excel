@@ -60,7 +60,7 @@ export const saveNewAndUpdateRecords = async (requestData) => {
 };
 
 // ดึงรายการ Templates
-export const fetchTemplates = async (userToken) => {
+export const fetchTemplateData = async (userToken) => {
   try {
     const response = await axios.get(`${API_BASE_URL}/save/templates/${userToken}`);
     return response.data;
@@ -88,7 +88,7 @@ export const fetchUploadedFiles = async (userToken, templateIDs) => {
 // ดาวน์โหลดไฟล์ Excel
 export const downloadExcelFile = async (userToken, fileName, templateId) => {
   try {
-    const { templates } = await fetchTemplates(userToken);
+    const { templates } = await fetchTemplateData(userToken);
 
     const selectedTemplate = templates.find(template => template.template_id === templateId);
     if (!selectedTemplate) {
