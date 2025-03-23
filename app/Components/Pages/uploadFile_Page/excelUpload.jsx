@@ -13,7 +13,6 @@ import axios from 'axios';
 const ExcelUpload = () => {
     const [file, setFile] = useState(null);
     const [fileName, setFileName] = useState('');
-    const [DbName, setDbName] = useState("");
     const [headers, setHeaders] = useState([]);
     const [rows, setRows] = useState([]);
     const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
@@ -33,7 +32,6 @@ const ExcelUpload = () => {
     const [failedCount, setFailedCount] = useState(0);
     const [reviewData, setReviewData] = useState([]);
     const [isLoadingReview, setIsLoadingReview] = useState(false);
-    const [Data, setData] = useState([]);
     const [newRecords, setNewRecords] = useState(0);
     const [existingRecordsCount, setExistingRecordsCount] = useState(0);
     const [identicalRecords, setIdenticalRecords] = useState(0);
@@ -43,6 +41,11 @@ const ExcelUpload = () => {
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [isLoadingSave, setIsLoadingSave] = useState(false);
     const [identicalRecordsWithComparison, setIdenticalRecordsWithComparison] = useState([]);
+    const [isLoadingExport, setIsLoadingExport] = useState(false);
+    const [fileNameInput, setFileNameInput] = useState("");
+    const [isFileConfirmOpen, setIsFileConfirmOpen] = useState(false);
+    const [existingFileName, setExistingFileName] = useState("");
+    const [isNewFile, setIsNewFile] = useState(true);
 
     useEffect(() => {
         const fetchTemplatesData = async () => {
@@ -239,13 +242,6 @@ const ExcelUpload = () => {
         const relations = selectedTemplateData.condition?.relations || [];
         const compares = selectedTemplateData.condition?.compares || [];
 
-        // const calculationDetails = calculations.map(calculation => [
-        //     calculation.type,
-        //     calculation.addend,
-        //     calculation.operand,
-        //     calculation.result
-        // ]);
-
         const calculationDetails = calculations.map(calculation => [
             calculation.expression,
             calculation.result
@@ -301,70 +297,148 @@ const ExcelUpload = () => {
         downloadErrorReport(errors, headers, rows);
     };
 
+    const normalizeValue = (value) => {
+        if (typeof value === "string") {
+            return value.trim().toLowerCase();
+        }
+        if (typeof value === "number") {
+            return Number(value);
+        }
+        return value;
+    };
+    
     const compareRecords = (existingRecords, reviewData) => {
         const citizenIdKey = headers.find(header =>
             /บัตรประชาชน|citizen[_]?id/i.test(header)
         );
-
+    
         let newRecords = [];
         let identicalRecords = [];
         let updatedRecords = [];
         let identicalRecordsWithComparison = [];
-
-        const existingRecordsMap = new Map();
-        existingRecords.forEach(record => {
-            const key = record[citizenIdKey];
-            if (key) {
-                existingRecordsMap.set(key, {
-                    documentId: record.documentId,
-                    data: record
-                });
-            }
-        });
-
-        reviewData.forEach(record => {
-            const key = record[citizenIdKey];
-
-            if (existingRecordsMap.has(key)) {
-                const { documentId, data: existingRecord } = existingRecordsMap.get(key);
-                let isIdentical = true;
-                let differences = {};
-
-                Object.keys(record).forEach(field => {
-                    const reviewFieldValue = record[field];
-                    const existingFieldValue = existingRecord[field];
-
-                    if (reviewFieldValue !== existingFieldValue) {
-                        isIdentical = false;
-                        differences[field] = {
-                            old: existingFieldValue,
-                            new: reviewFieldValue
-                        };
+    
+        if (citizenIdKey) {
+            // 🆔 กรณีมี citizenIdKey → ใช้ key ในการตรวจสอบ
+            const existingRecordsMap = new Map();
+            existingRecords.forEach(record => {
+                const key = record[citizenIdKey];
+                if (key) {
+                    existingRecordsMap.set(key, {
+                        documentId: record.documentId,
+                        data: record
+                    });
+                }
+            });
+    
+            reviewData.forEach(record => {
+                const key = record[citizenIdKey];
+    
+                if (existingRecordsMap.has(key)) {
+                    const { documentId, data: existingRecord } = existingRecordsMap.get(key);
+                    let isIdentical = true;
+                    let differences = {};
+    
+                    Object.keys(record).forEach(field => {
+                        const reviewFieldValue = normalizeValue(record[field]);
+                        const existingFieldValue = normalizeValue(existingRecord[field]);
+    
+                        if (reviewFieldValue !== existingFieldValue) {
+                            isIdentical = false;
+                            differences[field] = {
+                                old: existingRecord[field],
+                                new: record[field]
+                            };
+                        }
+                    });
+    
+                    if (isIdentical) {
+                        identicalRecords.push(record);
+                        identicalRecordsWithComparison.push({
+                            citizenId: key,
+                            existingData: existingRecord,
+                            newData: record,
+                            differences: {}
+                        });
+                    } else {
+                        updatedRecords.push({ ...record, documentId });
+                        identicalRecordsWithComparison.push({
+                            citizenId: key,
+                            existingData: existingRecord,
+                            newData: record,
+                            differences
+                        });
+                    }
+                } else {
+                    newRecords.push(record);
+                }
+            });
+        } else {
+            // ❌ กรณีไม่มี citizenIdKey → เปรียบเทียบแบบทั้งแถว (row-wise)
+            reviewData.forEach((record, index) => {
+                console.log(`\n🔍 กำลังตรวจสอบ record #${index + 1}:`, record);
+    
+                let bestMatch = null;
+                let highestSimilarity = 0;
+                let bestDifferences = {};
+    
+                existingRecords.forEach(existingRecord => {
+                    let differences = {};
+                    let matchCount = 0;
+                    let totalFields = Object.keys(record).length;
+    
+                    Object.keys(record).forEach(field => {
+                        const newValue = normalizeValue(record[field]);
+                        const existingValue = normalizeValue(existingRecord[field]);
+    
+                        if (newValue === existingValue) {
+                            matchCount++;
+                        } else {
+                            differences[field] = {
+                                old: existingValue ?? "N/A",
+                                new: newValue ?? "N/A"
+                            };
+                        }
+                    });
+    
+                    let similarity = matchCount / totalFields;
+    
+                    if (similarity > highestSimilarity) {
+                        highestSimilarity = similarity;
+                        bestMatch = existingRecord;
+                        bestDifferences = differences;
                     }
                 });
-
-                if (isIdentical) {
+    
+                if (highestSimilarity === 1) {
+                    console.log(`✅ [Identical] พบข้อมูลเหมือนกัน`);
+                    console.log(`   - Existing:`, bestMatch);
+                    console.log(`   - New:`, record);
+    
                     identicalRecords.push(record);
                     identicalRecordsWithComparison.push({
-                        citizenId: key,
-                        existingData: existingRecord,
+                        existingData: bestMatch,
                         newData: record,
                         differences: {}
                     });
-                } else {
-                    updatedRecords.push({ ...record, documentId });
+                } else if (highestSimilarity >= 0.1) {
+                    console.log(`📝 [Updated] พบข้อมูลใกล้เคียงกัน (Similarity: ${(highestSimilarity * 100).toFixed(2)}%)`);
+                    console.log(`   - Existing:`, bestMatch);
+                    console.log(`   - New:`, record);
+                    console.log(`   - Differences:`, bestDifferences);
+    
+                    updatedRecords.push(record);
                     identicalRecordsWithComparison.push({
-                        citizenId: key,
-                        existingData: existingRecord,
+                        existingData: bestMatch,
                         newData: record,
-                        differences
+                        differences: bestDifferences
                     });
+                } else {
+                    console.log(`➕ [New] ไม่พบข้อมูลที่ใกล้เคียงเลย → บันทึกเป็นข้อมูลใหม่`);
+                    newRecords.push(record);
                 }
-            } else {
-                newRecords.push(record);
-            }
-        });
-
+            });
+        }
+    
         return {
             newRecordsCount: newRecords.length,
             existingRecordsCount: identicalRecords.length + updatedRecords.length,
@@ -382,30 +456,33 @@ const ExcelUpload = () => {
             toast.error("ไม่มีข้อมูลที่ซ้ำเพื่อส่งออก");
             return;
         }
-    
+
         if (!userToken || !selectedTemplate) {
             toast.error("ข้อมูลเทมเพลตไม่ครบ");
             return;
         }
-    
+
+        setIsLoadingExport(true);
+
         try {
             const { templates } = await fetchTemplateData(userToken);
             const selectedTemplateData = templates.find(template => template.templatename === selectedTemplate);
-    
+
             if (!selectedTemplateData) {
                 toast.error("ไม่พบข้อมูลเทมเพลต");
+                setIsLoadingExport(false);
                 return;
             }
-    
+
             const orderedHeaders = selectedTemplateData.headers.map(header => header.name);
-    
+
             const requestData = {
                 identicalRecords: identicalRecordsWithComparison,
                 headers: orderedHeaders,
             };
-    
-            console.log("📤 ส่ง requestData ไป Backend:", requestData);
-    
+
+            console.log("ส่ง requestData ไป Backend:", requestData);
+
             const response = await axios.post("http://localhost:8080/api/export-excel", requestData, {
                 responseType: "blob",
                 headers: {
@@ -413,7 +490,7 @@ const ExcelUpload = () => {
                     "Content-Type": "application/json",
                 },
             });
-    
+
             if (response.status === 200) {
                 const url = window.URL.createObjectURL(new Blob([response.data]));
                 const link = document.createElement("a");
@@ -428,9 +505,24 @@ const ExcelUpload = () => {
         } catch (error) {
             console.error("❌ Error exporting identical records:", error.response?.data || error.message);
             toast.error("เกิดข้อผิดพลาดในการส่งออกไฟล์");
+        } finally {
+            setIsLoadingExport(false);
         }
-    };    
-        
+    };
+    
+    const filterValidRecords = () => {
+        const validErrors = errors
+            .flatMap(error => error.errorList ? error.errorList : [error])
+            .filter(error => error.row !== undefined && error.column !== undefined);
+    
+        const errorRows = new Set(validErrors.map(error => error.row)); // แปลงเป็น Set เพื่อเช็คเร็วขึ้น
+    
+        const validRecords = reviewData.filter((_, index) => !errorRows.has(index + 1));
+        const invalidRecords = reviewData.filter((_, index) => errorRows.has(index + 1));
+    
+        return { validRecords, invalidRecords };
+    };
+
     const handleReviewPage = async () => {
         setIsLoadingReview(true);
         setShowErrorModal(false);
@@ -446,7 +538,9 @@ const ExcelUpload = () => {
             try {
                 const existingRecords = await fetchExistingRecords(userToken, selectedTemplateData.template_id);
 
-                const formattedReviewData = reviewData.map(record =>
+                const { validRecords } = filterValidRecords();
+
+                const formattedReviewData = validRecords.map(record =>
                     headers.reduce((obj, header, index) => {
                         obj[header] = record[index];
                         return obj;
@@ -459,7 +553,7 @@ const ExcelUpload = () => {
                 setExistingRecordsCount(comparisonResults.existingRecordsCount);
                 setIdenticalRecords(comparisonResults.identicalRecordsCount);
                 setUpdatedRecords(comparisonResults.updatedRecordsCount);
-                setNewDatas(comparisonResults.newRecords);
+                setNewDatas(comparisonResults.newRecords);                
                 setUpdateDatas(comparisonResults.updatedRecords);
                 setIdenticalRecordsWithComparison(comparisonResults.identicalRecordsWithComparison);
             } catch (error) {
@@ -500,7 +594,7 @@ const ExcelUpload = () => {
     };
 
     const handleSaveToBackend = async () => {
-        if (!reviewData || reviewData.length === 0) {
+        if (!newDatas || newDatas.length === 0) {
             alert("ไม่มีข้อมูลให้บันทึก");
             return;
         }
@@ -516,57 +610,72 @@ const ExcelUpload = () => {
             return;
         }
 
-        const now = new Date().toISOString();
-        let fileNameToSave = "";
-
         try {
-            const { exists, fileName: existingFileName } = await checkFileExists(userToken, selectedTemplateData.template_id);
+            const { exists, fileName: foundFileName } = await checkFileExists(userToken, selectedTemplateData.template_id);
 
-            if (!exists) {
-                fileNameToSave = prompt("กรุณากรอกชื่อไฟล์ที่ต้องการบันทึก:");
-                if (!fileNameToSave) {
-                    alert("ต้องระบุชื่อไฟล์ก่อนบันทึก");
-                    return;
-                }
+            if (exists) {
+                setExistingFileName(foundFileName);
+                setIsNewFile(false);
+                setIsFileConfirmOpen(true); 
             } else {
-                fileNameToSave = existingFileName;
-                const confirmSave = confirm(`พบไฟล์ "${existingFileName}" ต้องการเพิ่มข้อมูลใหม่เข้าไปหรือไม่?`);
-                if (!confirmSave) return;
+                setIsNewFile(true);
+                setFileNameInput(""); 
+                setIsFileConfirmOpen(true); 
             }
+        } catch (error) {
+            alert("เกิดข้อผิดพลาดในการตรวจสอบไฟล์: " + error.message);
+        }
+    };
 
-            const formattedRecords = exists
-                ? newDatas.map(row => {
-                    let record = {};
-                    headers.forEach(header => (record[header] = row[header] ?? ""));
-                    return record;
-                })
-                : reviewData.map(row => {
-                    let record = {};
-                    headers.forEach((header, index) => (record[header] = row[index]));
-                    return record;
-                });
+    const confirmSave = async () => {
+        if (isNewFile && !fileNameInput.trim()) {
+            alert("ต้องระบุชื่อไฟล์ก่อนบันทึก");
+            return;
+        }
+    
+        const fileNameToSave = isNewFile ? fileNameInput.trim() : existingFileName;
+        const now = new Date().toISOString();
+    
+        try {
+            setIsLoadingSave(true);
+            setIsFileConfirmOpen(false);
+            const selectedTemplateData = templates.find(template => template.templatename === selectedTemplate);
 
+            const formattedRecords = newDatas.map(row => {
+                let record = {};
+                headers.forEach(header => (record[header] = row[header] ?? ""));
+                return record;
+            });
+    
             if (formattedRecords.length === 0) {
                 alert("ไม่มีข้อมูลใหม่ให้เพิ่ม");
                 return;
             }
-
+    
             const requestData = {
                 userToken,
                 templateId: selectedTemplateData.template_id,
                 fileName: fileNameToSave,
                 uploadedAt: now,
                 updateAt: now,
-                records: formattedRecords,
+                records: formattedRecords, 
             };
-
-            await saveExcelData(requestData);
-            alert(`บันทึกข้อมูลสำเร็จ! ไฟล์: ${fileNameToSave}`);
+    
+            const response = await saveExcelData(requestData);
+    
+            alert(`บันทึกข้อมูลสำเร็จ! ไฟล์: ${response.fileName}`);
+    
             setIsReviewOpen(false);
             setErrors([]);
         } catch (error) {
-            alert(error.message);
+            alert("เกิดข้อผิดพลาด: " + error.message);
+        } finally {
+            setIsLoadingSave(false);
         }
+    };    
+
+    const cancelSave = () => {
+        setIsFileConfirmOpen(false);
     };
 
     const handleSaveNewAndUpdateRecords = async () => {
@@ -799,33 +908,27 @@ const ExcelUpload = () => {
                                 <div className="space-y-4 bg-gray-50 p-6 rounded-lg shadow-md w-full md:w-1/3">
                                     <div className="space-y-4">
                                         <div className="flex items-center text-green-600 font-semibold">
-                                            <span className="text-lg">✅</span>
                                             <p className="ml-2">{`ข้อมูลที่ผ่านการตรวจสอบ: ${passedCount} records`}</p>
                                         </div>
 
                                         <div className="flex items-center text-green-600 font-semibold">
-                                            <span className="text-lg">✅</span>
                                             <p className="ml-2">{`ข้อมูลใหม่: ${newRecords ? newRecords : 0} records`}</p>
                                         </div>
 
                                         <div className="flex items-center text-green-600 font-semibold">
-                                            <span className="text-lg">✅</span>
                                             <p className="ml-2">{`ข้อมูลที่มีอยู่ในระบบ: ${existingRecordsCount ? existingRecordsCount : 0} records`}</p>
                                         </div>
 
                                         <div className="flex items-center text-green-600 font-semibold">
-                                            <span className="text-lg">✅</span>
                                             <p className="ml-2">{`ข้อมูลที่ซ้ำไม่มีความแตกต่าง: ${identicalRecords ? identicalRecords : 0} records`}</p>
                                         </div>
 
                                         <div className="flex items-center text-green-600 font-semibold">
-                                            <span className="text-lg">✅</span>
                                             <p className="ml-2">{`ข้อมูลที่ซ้ำมีความแตกต่าง: ${updatedRecords ? updatedRecords : 0} records`}</p>
                                         </div>
                                     </div>
 
                                     <div className="flex items-center text-red-600 font-semibold">
-                                        <span className="text-lg">❌</span>
                                         <p className="ml-2">{`ข้อมูลที่ไม่ผ่านการตรวจสอบ: ${failedCount} records`}</p>
                                     </div>
                                 </div>
@@ -854,13 +957,55 @@ const ExcelUpload = () => {
                                     onClick={exportIdenticalRecords}
                                     className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md"
                                 >
-                                    📤 Export ข้อมูลที่ซ้ำ
+                                    Export ข้อมูลที่ซ้ำ
                                 </button>
                             </div>
                         </div>
                     </div>
                 )}
+                {isFileConfirmOpen && (
+                    <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
+                        <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+                            <h3 className="text-xl font-semibold mb-4">
+                                {isNewFile ? "บันทึกไฟล์ใหม่" : `พบไฟล์ "${existingFileName}"`}
+                            </h3>
 
+                            {isNewFile ? (
+                                <>
+                                    <input
+                                        type="text"
+                                        className="w-full p-2 border rounded-lg mb-4"
+                                        placeholder="กรอกชื่อไฟล์"
+                                        value={fileNameInput}
+                                        onChange={(e) => setFileNameInput(e.target.value)}
+                                    />
+                                    <button
+                                        className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 mb-2"
+                                        onClick={confirmSave}
+                                    >
+                                        บันทึก
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-gray-700 mb-4">ต้องการเพิ่มข้อมูลใหม่เข้าไปหรือไม่?</p>
+                                    <button
+                                        className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 mb-2"
+                                        onClick={confirmSave}
+                                    >
+                                        ยืนยัน
+                                    </button>
+                                </>
+                            )}
+                            <button
+                                className="w-full bg-gray-400 text-white py-2 rounded-lg hover:bg-gray-500"
+                                onClick={cancelSave}
+                            >
+                                ยกเลิก
+                            </button>
+                        </div>
+                    </div>
+                )}
                 {isLoadingSave && (
                     <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
                         <div className="bg-white p-6 rounded-lg flex flex-col items-center">
@@ -885,9 +1030,17 @@ const ExcelUpload = () => {
                                     onClick={handleConfirmSave}
                                     className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md"
                                 >
-                                    ✅ ยืนยัน
+                                    ยืนยัน
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                )}
+                {isLoadingExport && (
+                    <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
+                        <div className="bg-white p-6 rounded-lg flex flex-col items-center">
+                            <h3 className="text-xl font-semibold mb-4">📤 กำลัง Export ไฟล์...</h3>
+                            <div className="w-10 h-10 border-4 border-blue-500 border-solid border-t-transparent rounded-full animate-spin"></div>
                         </div>
                     </div>
                 )}

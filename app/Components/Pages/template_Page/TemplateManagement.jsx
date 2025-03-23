@@ -415,8 +415,6 @@ const TemplateManagement = () => {
 
           {(showDeleteDialog || showCopyDialog || showDownloadDialog) && (
             <div className="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-center z-50 transition-opacity duration-300">
-
-              {/* 🔴 Dialog สำหรับลบเทมเพลต */}
               {showDeleteDialog && (
                 <div className="bg-white rounded-lg p-6 w-120 shadow-lg">
                   {deleting ? (
@@ -450,7 +448,6 @@ const TemplateManagement = () => {
                 </div>
               )}
 
-              {/* 🔵 Dialog สำหรับคัดลอกเทมเพลต */}
               {showCopyDialog && (
                 <div className="bg-white rounded-lg p-6 w-120 shadow-lg">
                   {copying ? (
@@ -484,7 +481,6 @@ const TemplateManagement = () => {
                 </div>
               )}
 
-              {/* 🟢 Dialog สำหรับดาวน์โหลดเทมเพลต */}
               {showDownloadDialog && (
                 <div className="bg-white rounded-lg p-6 w-120 shadow-lg">
                   {downloding ? (

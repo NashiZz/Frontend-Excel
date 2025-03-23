@@ -15,7 +15,7 @@ export const updateUserTokenInBackend = async (userToken) => {
       return response;
     }
   } catch (error) {
-    console.error("❌ Error updating user token in backend:", error);
+    console.error("Error updating user token in backend:", error);
     throw error; 
   }
 };
@@ -41,7 +41,7 @@ export const fetchTemplates = async (userToken) => {
     }
     return response.data;
   } catch (error) {
-    console.error("❌ Error fetching templates:", error);
+    console.error("Error fetching templates:", error);
     return null;
   }
 };
@@ -51,7 +51,7 @@ export const deleteTemplate = async (userToken, templateId) => {
     const response = await axios.delete(`${API_URL}/${userToken}/${templateId}`);
     return response.data;
   } catch (error) {
-    console.error("❌ Error deleting template:", error);
+    console.error("Error deleting template:", error);
     return null;
   }
 };
@@ -61,7 +61,7 @@ export const updateTemplate = async (userToken, templateId, templateRequest) => 
     const response = await axios.put(`${API_URL}/${userToken}/${templateId}`, templateRequest);
     return response.data;
   } catch (error) {
-    console.error("❌ Error updating template:", error);
+    console.error("Error updating template:", error);
     return null;
   }
 };
@@ -91,7 +91,7 @@ export const saveTemplate = async (fileName, headers, maxRows, calculationCondit
   existingTemplates.push(newTemplate);
   localStorage.setItem("templates", JSON.stringify(existingTemplates));
 
-  console.log("🚀 Sending template:", newTemplate);
+  console.log("Sending template:", newTemplate);
   setIsSaving(true);
 
   try {
@@ -102,7 +102,7 @@ export const saveTemplate = async (fileName, headers, maxRows, calculationCondit
           setIsDialogOpen(false);
           navigate("/template");
       } else {
-          alert(`❌ Error: ${response.data.message}`);
+          alert(`Error: ${response.data.message}`);
       }
   } catch (error) {
       console.error("❌ Error saving template:", error);
@@ -143,7 +143,7 @@ export const duplicateTemplate = async (template, userToken, setTemplates, setCo
       alert(`Error: ${response.data.message}`);
     }
   } catch (error) {
-    console.error("❌ Error saving duplicated template:", error);
+    console.error("Error saving duplicated template:", error);
     alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
   } finally {
     setCopying(false);

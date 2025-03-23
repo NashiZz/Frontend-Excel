@@ -51,15 +51,14 @@ export const saveNewAndUpdateRecords = async (requestData) => {
         if (!response.ok) throw new Error("เกิดข้อผิดพลาดขณะบันทึกข้อมูล");
 
         const data = await response.json(); 
-        console.log("✅ Success:", data.message);
+        console.log("Success:", data.message);
         return data;
     } catch (error) {
-        console.error("❌ Error saving new and update records:", error);
+        console.error("Error saving new and update records:", error);
         throw error;
     }
 };
 
-// ดึงรายการ Templates
 export const fetchTemplateData = async (userToken) => {
   try {
     const response = await axios.get(`${API_BASE_URL}/save/templates/${userToken}`);
@@ -70,7 +69,6 @@ export const fetchTemplateData = async (userToken) => {
   }
 };
 
-// ดึงไฟล์ที่อัปโหลด
 export const fetchUploadedFiles = async (userToken, templateIDs) => {
   try {
     const response = await axios.post(`${API_BASE_URL}/getUploadedFiles`, {
@@ -85,7 +83,6 @@ export const fetchUploadedFiles = async (userToken, templateIDs) => {
   }
 };
 
-// ดาวน์โหลดไฟล์ Excel
 export const downloadExcelFile = async (userToken, fileName, templateId) => {
   try {
     const { templates } = await fetchTemplateData(userToken);
