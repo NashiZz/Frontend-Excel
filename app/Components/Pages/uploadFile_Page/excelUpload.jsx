@@ -318,7 +318,6 @@ const ExcelUpload = () => {
         let identicalRecordsWithComparison = [];
     
         if (citizenIdKey) {
-            // 🆔 กรณีมี citizenIdKey → ใช้ key ในการตรวจสอบ
             const existingRecordsMap = new Map();
             existingRecords.forEach(record => {
                 const key = record[citizenIdKey];
@@ -373,7 +372,6 @@ const ExcelUpload = () => {
                 }
             });
         } else {
-            // ❌ กรณีไม่มี citizenIdKey → เปรียบเทียบแบบทั้งแถว (row-wise)
             reviewData.forEach((record, index) => {
                 console.log(`\n🔍 กำลังตรวจสอบ record #${index + 1}:`, record);
     
@@ -907,29 +905,35 @@ const ExcelUpload = () => {
 
                                 <div className="space-y-4 bg-gray-50 p-6 rounded-lg shadow-md w-full md:w-1/3">
                                     <div className="space-y-4">
-                                        <div className="flex items-center text-green-600 font-semibold">
-                                            <p className="ml-2">{`ข้อมูลที่ผ่านการตรวจสอบ: ${passedCount} records`}</p>
+                                        <div className="flex flex-col items-start text-green-600 font-semibold">
+                                            <p className="ml-2">{`ข้อมูลที่ผ่านการตรวจสอบ`}</p>
+                                            <p className="ml-2">{`: ${passedCount} records`}</p>
                                         </div>
 
-                                        <div className="flex items-center text-green-600 font-semibold">
-                                            <p className="ml-2">{`ข้อมูลใหม่: ${newRecords ? newRecords : 0} records`}</p>
+                                        <div className="flex flex-col items-start text-green-600 font-semibold">
+                                            <p className="ml-2">{`ข้อมูลใหม่`}</p>
+                                            <p className="ml-2">{`: ${newRecords ? newRecords : 0} records`}</p>
                                         </div>
 
-                                        <div className="flex items-center text-green-600 font-semibold">
-                                            <p className="ml-2">{`ข้อมูลที่มีอยู่ในระบบ: ${existingRecordsCount ? existingRecordsCount : 0} records`}</p>
+                                        <div className="flex flex-col items-start text-green-600 font-semibold">
+                                            <p className="ml-2">{`ข้อมูลที่มีอยู่ในระบบ`}</p>
+                                            <p className="ml-2">{`: ${existingRecordsCount ? existingRecordsCount : 0} records`}</p>
                                         </div>
 
-                                        <div className="flex items-center text-green-600 font-semibold">
-                                            <p className="ml-2">{`ข้อมูลที่ซ้ำไม่มีความแตกต่าง: ${identicalRecords ? identicalRecords : 0} records`}</p>
+                                        <div className="flex flex-col items-start text-green-600 font-semibold">
+                                            <p className="ml-2">{`ข้อมูลที่ซ้ำไม่มีความแตกต่าง`}</p>
+                                            <p className="ml-2">{`: ${identicalRecords ? identicalRecords : 0} records`}</p>
                                         </div>
 
-                                        <div className="flex items-center text-green-600 font-semibold">
-                                            <p className="ml-2">{`ข้อมูลที่ซ้ำมีความแตกต่าง: ${updatedRecords ? updatedRecords : 0} records`}</p>
+                                        <div className="flex flex-col items-start text-green-600 font-semibold">
+                                            <p className="ml-2">{`ข้อมูลที่ซ้ำมีความแตกต่าง`}</p>
+                                            <p className="ml-2">{`: ${updatedRecords ? updatedRecords : 0} records`}</p>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center text-red-600 font-semibold">
-                                        <p className="ml-2">{`ข้อมูลที่ไม่ผ่านการตรวจสอบ: ${failedCount} records`}</p>
+                                    <div className="flex flex-col items-start text-red-600 font-semibold">
+                                        <p className="ml-2">{`ข้อมูลที่ไม่ผ่านการตรวจสอบ`}</p>
+                                        <p className="ml-2">{`: ${failedCount} records`}</p>
                                     </div>
                                 </div>
                             </div>
