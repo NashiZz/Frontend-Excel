@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "https://backend-excel-cagd.onrender.com/api";
+const API_BASE_URL = "http://localhost:8080/api";
 
 export const uploadExcelFile = async (file, setErrors, setSuccessMessage) => {
     const formData = new FormData();
@@ -13,7 +13,7 @@ export const uploadExcelFile = async (file, setErrors, setSuccessMessage) => {
             },
         });
 
-        setSuccessMessage('✅ ตรวจสอบข้อมูลเรียบร้อย ไม่มีข้อผิดพลาด');
+        setSuccessMessage('ตรวจสอบข้อมูลเรียบร้อย ไม่มีข้อผิดพลาด');
         setErrors([]);
     } catch (error) {
         if (error.response) {
@@ -25,7 +25,7 @@ export const uploadExcelFile = async (file, setErrors, setSuccessMessage) => {
             }
         } else {
             console.error("Error:", error.message);
-            setErrors(["❌ เกิดข้อผิดพลาดในการอัปโหลดไฟล์"]);
+            setErrors(["เกิดข้อผิดพลาดในการอัปโหลดไฟล์"]);
         }
     }
 };
@@ -42,7 +42,7 @@ export const uploadExcelFileWithHeader = async (file, header, setErrors, setSucc
             },
         });
 
-        setSuccessMessage("✅ ตรวจสอบข้อมูลเรียบร้อย ไม่มีข้อผิดพลาด");
+        setSuccessMessage("ตรวจสอบข้อมูลเรียบร้อย ไม่มีข้อผิดพลาด");
         setErrors([]);
     } catch (error) {
         if (error.response) {
@@ -54,12 +54,12 @@ export const uploadExcelFileWithHeader = async (file, header, setErrors, setSucc
             }
         } else {
             console.error("Error:", error.message);
-            setErrors(["❌ เกิดข้อผิดพลาดในการอัปโหลดไฟล์"]);
+            setErrors(["เกิดข้อผิดพลาดในการอัปโหลดไฟล์"]);
         }
     }
 };
 
-export const uploadExcelFileWithTemplate = async (file, condition, calculater, relation, compare, setErrors, setSuccessMessage) => {
+export const uploadExcelFileWithTemplate = async (file, condition, calculater, relation, compare, setErrors, setSuccessMessage, handleReviewPage, setShowErrorModal) => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("condition", JSON.stringify(condition));
@@ -75,8 +75,8 @@ export const uploadExcelFileWithTemplate = async (file, condition, calculater, r
         });
 
         if (response.status === 200) {
-            setSuccessMessage("✅ อัปโหลดไฟล์สำเร็จ! ตรวจสอบข้อมูลเรียบร้อย ไม่มีข้อผิดพลาด");
-            setErrors([]);
+            setSuccessMessage("อัปโหลดไฟล์สำเร็จ! ตรวจสอบข้อมูลเรียบร้อย ไม่มีข้อผิดพลาด");
+            handleReviewPage();
         }
     } catch (error) {
         if (error.response) {
@@ -88,12 +88,12 @@ export const uploadExcelFileWithTemplate = async (file, condition, calculater, r
             } else {
                 setErrors([errorData.message || "เกิดข้อผิดพลาด"]);
                 console.log(errorData.message);
-                
             }
         } else {
             console.error("Error:", error.message);
             setErrors(["❌ เกิดข้อผิดพลาดในการอัปโหลดไฟล์"]);
         }
+        setShowErrorModal(true);
     }
 };
 

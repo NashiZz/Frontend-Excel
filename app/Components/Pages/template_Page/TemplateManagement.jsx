@@ -1,28 +1,34 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFileAlt, faEdit, faTrashAlt, faCopy, faEyeSlash, faEye, faChevronDown, faChevronUp, faCloudArrowDown, faFileArrowDown, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faFileAlt, faEdit, faTrashAlt, faCopy, faEyeSlash, faEye, faChevronDown, faChevronUp, faCloudArrowDown, faFileArrowDown, faPlus, faTrash, faDownload, faTimesCircle, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 import { v4 as uuidv4 } from "uuid";
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import { deleteTemplate, fetchTemplates, updateUserTokenInBackend } from "@/app/Service/templateService";
+import { deleteTemplate, duplicateTemplate, fetchTemplates, updateUserTokenInBackend } from "@/app/Service/templateService";
 
 const TemplateManagement = () => {
   const [templates, setTemplates] = useState([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showCopyDialog, setShowCopyDialog] = useState(false);
+  const [showDownloadDialog, setShowDownloadDialog] = useState(false);
+  const [templateToCopy, setTemplateToCopy] = useState(null);
   const [templateToDelete, setTemplateToDelete] = useState(null);
+  const [templateToDownload, setTemplateToDownload] = useState(null);
   const [currentTemplate, setCurrentTemplate] = useState(null);
   const [editedTemplate, setEditedTemplate] = useState({ templatename: "", headers: [], maxRows: "" });
   const [userToken, setUserToken] = useState(localStorage.getItem("userToken") || "");
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
-  const navigate = useNavigate();
+  const [copying, setCopying] = useState(false);
+  const [downloding, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [newUserToken, setNewUserToken] = useState("");
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [isLoadToken, setIsLoadToken] = useState(false);
   const [isExpanded, setIsExpanded] = useState({});
+  const navigate = useNavigate();
 
   const toggleExpand = (templateName) => {
     setIsExpanded((prev) => ({
@@ -107,6 +113,10 @@ const TemplateManagement = () => {
     }
   };
 
+  const handleDuplicateTemplate = (template) => {
+    duplicateTemplate(template, userToken, setTemplates, setCopying, setShowCopyDialog);
+  };
+
   const openDeleteDialog = (template) => {
     setTemplateToDelete(template);
     setShowDeleteDialog(true);
@@ -116,13 +126,23 @@ const TemplateManagement = () => {
     setShowDeleteDialog(false);
   };
 
-  const handleDeleteTemplate = async (templateName) => {
+  const openCopyDialog = (template) => {
+    setTemplateToCopy(template);
+    setShowCopyDialog(true);
+  };
+
+  const openDownloadDialog = (template) => {
+    setTemplateToDownload(template);
+    setShowDownloadDialog(true);
+  };
+
+  const handleDeleteTemplate = async (templateId) => {
     try {
       setDeleting(true);
-      const response = await deleteTemplate(userToken, templateName);
+      const response = await deleteTemplate(userToken, templateId);
       if (response) {
         const updatedTemplates = templates.filter(
-          (template) => template.templatename !== templateName
+          (template) => template.template_id !== templateId
         );
         setTemplates(updatedTemplates);
       }
@@ -150,27 +170,41 @@ const TemplateManagement = () => {
       console.error("ไม่มี headers สำหรับสร้างไฟล์ Excel");
       return;
     }
+    setDownloading(true);
 
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet("Template");
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Template");
 
-    worksheet.columns = headers.map(header => ({
-      header: header.name,
-      key: header.key,
-      width: 20
-    }));
+      worksheet.columns = headers.map(header => ({
+        header: header.name,
+        key: header.key,
+        width: 20
+      }));
 
-    worksheet.getRow(1).eachCell((cell) => {
-      cell.font = { bold: true };
-      cell.alignment = { horizontal: "center", vertical: "middle" };
-    });
+      const headerRow = worksheet.getRow(1);
+      headerRow.eachCell(cell => {
+        cell.font = { bold: true };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFDDDDDD" },
+        };
+      });
 
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
 
-    saveAs(blob, `${fileName}.xlsx`);
+      saveAs(blob, `${fileName}.xlsx`);
+    } catch (error) {
+      console.error("เกิดข้อผิดพลาดในการสร้างไฟล์ Excel:", error);
+    } finally {
+      setDownloading(false);
+      setShowDownloadDialog(false);
+    }
   };
 
   return (
@@ -182,8 +216,8 @@ const TemplateManagement = () => {
         </h1>
       </div>
 
-      <div className="flex mb-2 justify-between">
-        <div className="bg-white shadow-md p-4 rounded-lg flex items-center justify-between w-2/3">
+      <div className="flex flex-col sm:flex-row mb-2 justify-between">
+        <div className="bg-white shadow-md p-4 rounded-lg flex items-center justify-between w-full sm:w-2/3">
           <p className="text-gray-600 font-medium">
             Token ของคุณ:{" "}
             <span className="text-blue-600 break-all pr-3">
@@ -218,17 +252,16 @@ const TemplateManagement = () => {
             </div>
           )}
         </div>
-        <div className="flex gap-4 mt-6">
+        <div className="flex flex-col sm:flex-row gap-4 mt-6 w-full sm:w-auto">
           <button
             onClick={handleLoadOldTemplate}
-            className="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition flex items-center"
+            className="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition flex items-center w-full sm:w-auto"
           >
             <FontAwesomeIcon icon={faCloudArrowDown} className="mr-2" />
             โหลด Template เดิม
           </button>
           <button
-            className={`bg-green-500 text-white px-5 py-2 rounded-lg flex items-center ${!userToken ? "opacity-50 cursor-not-allowed" : "hover:bg-green-600"
-              }`}
+            className={`bg-green-500 text-white px-5 py-2 rounded-lg flex items-center w-full sm:w-auto ${!userToken ? "opacity-50 cursor-not-allowed" : "hover:bg-green-600"}`}
             onClick={userToken ? handleAddTemplate : undefined}
             disabled={!userToken}
           >
@@ -301,10 +334,16 @@ const TemplateManagement = () => {
                     </td>
                     <td className="px-2 sm:px-4 py-2">
                       <button
-                        onClick={() => generateExcel(template.headers, template.templatename)}
-                        className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600"
+                        onClick={() => openDownloadDialog(template)}
+                        className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 mr-2"
                       >
                         <FontAwesomeIcon icon={faFileArrowDown} />
+                      </button>
+                      <button
+                        onClick={() => openCopyDialog(template)}
+                        className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600"
+                      >
+                        <FontAwesomeIcon icon={faCopy} />
                       </button>
                     </td>
                   </tr>
@@ -312,8 +351,8 @@ const TemplateManagement = () => {
                   {isExpanded[template.templatename] && (
                     <tr>
                       <td colSpan="6" className="px-8 py-4 bg-gray-50">
-                        <div className="flex flex-row justify-between">
-                          <div>
+                        <div className="flex flex-col sm:flex-row justify-between">
+                          <div className="sm:w-1/3">
                             <h3 className="text-gray-700 font-semibold">เงื่อนไขในการเช็ค</h3>
                             <ul className="list-disc pl-5 text-gray-600">
                               {template.headers.map((header, idx) => (
@@ -323,21 +362,21 @@ const TemplateManagement = () => {
                               ))}
                             </ul>
                           </div>
-                          <div>
+                          <div className="sm:w-1/3">
                             <h3 className="text-gray-700 font-semibold">เงื่อนไขในการคำนวณ</h3>
                             <ul className="list-disc pl-5 text-gray-600">
                               {template.condition?.calculations?.length > 0 ? (
-                                template.condition.calculations.map((calc, idx) => (
+                                template.condition.calculations?.map((calc, idx) => (
                                   <li key={idx} className="mt-1">
-                                    {calc.result} = {calc.addend} {calc.type} {calc.operand}
+                                    {`${calc.expression.join(" ")} = ${calc.result}`}
                                   </li>
                                 ))
                               ) : (
-                                <li>ไม่มีเงื่อนไขการคำนวณ</li>
+                                <li className="mt-1">ไม่มีเงื่อนไขการคำนวณ</li>
                               )}
                             </ul>
                           </div>
-                          <div>
+                          <div className="sm:w-1/3">
                             <h3 className="text-gray-700 font-semibold">เงื่อนไขในการเปรียบเทียบ</h3>
                             <ul className="list-disc pl-5 text-gray-600">
                               {template.condition?.compares?.length > 0 ? (
@@ -347,11 +386,11 @@ const TemplateManagement = () => {
                                   </li>
                                 ))
                               ) : (
-                                <li>ไม่มีเงื่อนไขการเปรียบเทียบ</li>
+                                <li className="mt-1">ไม่มีเงื่อนไขการเปรียบเทียบ</li>
                               )}
                             </ul>
                           </div>
-                          <div>
+                          <div className="sm:w-1/3">
                             <h3 className="text-gray-700 font-semibold">เงื่อนไขความสัมพันธ์ของคอลัมน์</h3>
                             <ul className="list-disc pl-5 text-gray-600">
                               {template.condition?.relations?.length > 0 ? (
@@ -361,7 +400,7 @@ const TemplateManagement = () => {
                                   </li>
                                 ))
                               ) : (
-                                <li>ไม่มีเงื่อนไขความสัมพันธ์</li>
+                                <li className="mt-1">ไม่มีเงื่อนไขความสัมพันธ์</li>
                               )}
                             </ul>
                           </div>
@@ -373,45 +412,112 @@ const TemplateManagement = () => {
               ))}
             </tbody>
           </table>
-          {showDeleteDialog && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
-              {deleting ? (
-                <div className="bg-white rounded-lg p-6 w-80">
-                  <div className="flex flex-col px-6 items-center">
-                    <p className="text-red-800 text-lg font-semibold">กำลังลบ...</p>
-                    <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="bg-white rounded-lg p-6 w-120">
-                    <h2 className="text-xl font-semibold mb-6">คุณแน่ใจหรือไม่ที่จะลบเทมเพลตนี้?</h2>
+
+          {(showDeleteDialog || showCopyDialog || showDownloadDialog) && (
+            <div className="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-center z-50 transition-opacity duration-300">
+              {showDeleteDialog && (
+                <div className="bg-white rounded-lg p-6 w-120 shadow-lg">
+                  {deleting ? (
+                    <div className="flex flex-col px-6 items-center">
+                      <p className="text-red-800 text-lg font-semibold">กำลังลบ...</p>
+                      <div className="w-8 h-8 border-4 border-red-500 border-dashed rounded-full animate-spin mt-3"></div>
+                    </div>
+                  ) : (
                     <div className="text-center">
-                      <p>ชื่อเทมเพลต</p>
-                      <h2 className="font-semibold text-blue-800">{templateToDelete?.templatename}</h2>
+                      <FontAwesomeIcon icon={faTrash} className="text-red-600 text-4xl mb-4" />
+                      <h2 className="text-xl font-semibold mb-4">คุณแน่ใจหรือไม่ที่จะลบเทมเพลตนี้?</h2>
+                      <h2 className="text-lg font-semibold text-blue-800">{templateToDelete?.templatename}</h2>
+                      <div className="mt-6 flex justify-between gap-4">
+                        <button
+                          onClick={closeDeleteDialog}
+                          className="flex items-center gap-2 bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+                        >
+                          <FontAwesomeIcon icon={faTimesCircle} />
+                          ยกเลิก
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTemplate(templateToDelete.template_id)}
+                          className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                        >
+                          <FontAwesomeIcon icon={faCheckCircle} />
+                          ยืนยันการลบ
+                        </button>
+                      </div>
                     </div>
-                    <div className="mt-6 flex justify-between gap-4">
-                      <button
-                        onClick={closeDeleteDialog}
-                        className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
-                      >
-                        ยกเลิก
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTemplate(templateToDelete.templatename)}
-                        className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
-                      >
-                        ยืนยันการลบ
-                      </button>
+                  )}
+                </div>
+              )}
+
+              {showCopyDialog && (
+                <div className="bg-white rounded-lg p-6 w-120 shadow-lg">
+                  {copying ? (
+                    <div className="flex flex-col px-6 items-center">
+                      <p className="text-blue-800 text-lg font-semibold">กำลังคัดลอก...</p>
+                      <div className="w-8 h-8 border-4 border-blue-500 border-dashed rounded-full animate-spin mt-3"></div>
                     </div>
-                  </div>
-                </>
+                  ) : (
+                    <div className="text-center">
+                      <FontAwesomeIcon icon={faCopy} className="text-blue-600 text-4xl mb-4" />
+                      <h2 className="text-xl font-semibold mb-4">คุณต้องการคัดลอกเทมเพลตนี้ใช่หรือไม่?</h2>
+                      <h2 className="text-lg font-semibold text-blue-800">{templateToCopy.templatename}</h2>
+                      <div className="mt-6 flex justify-between gap-4">
+                        <button
+                          onClick={() => setShowCopyDialog(false)}
+                          className="flex items-center gap-2 bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+                        >
+                          <FontAwesomeIcon icon={faTimesCircle} />
+                          ยกเลิก
+                        </button>
+                        <button
+                          onClick={() => handleDuplicateTemplate(templateToCopy)}
+                          className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+                        >
+                          <FontAwesomeIcon icon={faCheckCircle} />
+                          คัดลอก
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {showDownloadDialog && (
+                <div className="bg-white rounded-lg p-6 w-120 shadow-lg">
+                  {downloding ? (
+                    <div className="flex flex-col px-6 items-center">
+                      <p className="text-blue-800 text-lg font-semibold">กำลังดาวน์โหลดไฟล์...</p>
+                      <div className="w-8 h-8 border-4 border-green-500 border-dashed rounded-full animate-spin mt-3"></div>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <FontAwesomeIcon icon={faDownload} className="text-green-600 text-4xl mb-4" />
+                      <h2 className="text-xl font-semibold mb-4">คุณต้องการดาวน์โหลดเทมเพลตนี้ใช่หรือไม่?</h2>
+                      <h2 className="text-lg font-semibold text-blue-800">{templateToDownload.templatename}</h2>
+                      <div className="mt-6 flex justify-between gap-4">
+                        <button
+                          onClick={() => setShowDownloadDialog(false)}
+                          className="flex items-center gap-2 bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+                        >
+                          <FontAwesomeIcon icon={faTimesCircle} />
+                          ยกเลิก
+                        </button>
+                        <button
+                          onClick={() => generateExcel(templateToDownload.headers, templateToDownload.templatename)}
+                          className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
+                        >
+                          <FontAwesomeIcon icon={faCheckCircle} />
+                          ดาวน์โหลด
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
+
         </div>
-      )
-      }
+      )}
 
       {
         isLoadDialogOpen && (

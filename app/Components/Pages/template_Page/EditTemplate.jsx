@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlusCircle, faFileAlt, faArrowUp, faArrowDown } from '@fortawesome/free-solid-svg-icons';
+import { faPlusCircle, faFileAlt, faArrowUp, faArrowDown, faExclamationTriangle, faCheckCircle, faTimesCircle } from '@fortawesome/free-solid-svg-icons';
 import { updateTemplate } from "@/app/Service/templateService";
 
 const EditTemplate = () => {
@@ -12,9 +12,11 @@ const EditTemplate = () => {
 
     const [fileName, setFileName] = useState("");
     const [headers, setHeaders] = useState([]);
-    const [maxRows, setMaxRows] = useState(10);
-    const [calculationType, setCalculationType] = useState('');
+    const [maxRows, setMaxRows] = useState(0);
     const [calculationCondition, setCalculationCondition] = useState([]);
+    const [calculationExpression, setCalculationExpression] = useState([]);
+    const [resultColumn, setResultColumn] = useState("");
+    const [isColumnSelected, setIsColumnSelected] = useState(false);
     const [isGreaterLessThanDialogOpen, setIsGreaterLessThanDialogOpen] = useState(false);
     const [compareType, setCompareType] = useState('');
     const [greaterLessCondition, setGreaterLessCondition] = useState([]);
@@ -28,7 +30,14 @@ const EditTemplate = () => {
     const [selectedFirstColumn, setSelectedFirstColumn] = useState('');
     const [selectedSecondColumn, setSelectedSecondColumn] = useState('');
     const [selectedCondition, setSelectedCondition] = useState('');
+    const [showConditionDialog, setShowConditionDialog] = useState(false);
+    const [changedHeaders, setChangedHeaders] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [selectedConditions, setSelectedConditions] = useState({
+        calculation: false,
+        greaterless: false,
+        relationCondition: false
+    });
 
     const conditions = [
         { value: "name", label: "ตรวจสอบชื่อ" },
@@ -49,6 +58,74 @@ const EditTemplate = () => {
     ];
 
     useEffect(() => {
+        const changes = [];
+
+        headers.forEach((header) => {
+            const isUsedInCalculation = calculationCondition.some(condition =>
+                condition.expression.includes(header.name)
+            );
+            const isUsedInComparison = greaterLessCondition.some(condition =>
+                condition.addend === header.name || condition.operand === header.name
+            );
+            const isUsedInRelation = relationCondition.some(relation =>
+                relation.column1 === header.name || relation.column2 === header.name
+            );
+
+            if (header.conditionChanged && (isUsedInCalculation || isUsedInComparison || isUsedInRelation)) {
+                changes.push(header.name);
+            }
+        });
+
+        if (changes.length > 0) {
+            setChangedHeaders(changes);
+            setShowConditionDialog(true);
+        }
+    }, [headers]);
+
+    const handleConfirmDelete = () => {
+        removeRelatedConditions(changedHeaders);
+        setShowConditionDialog(false);
+    };
+
+    const handleCancelDelete = () => {
+        resetConditionChanged(changedHeaders);
+        setShowConditionDialog(false);
+    };
+
+    const removeRelatedConditions = (changedHeaders) => {
+        changedHeaders.forEach((headerName) => {
+            calculationCondition.forEach((condition, index) => {
+                if (condition.expression.includes(headerName)) {
+                    removeCalculationCondition(index);
+                }
+            });
+
+            greaterLessCondition.forEach((condition, index) => {
+                if (condition.addend === headerName || condition.operand === headerName) {
+                    removeCompare(index);
+                }
+            });
+
+            relationCondition.forEach((relation, index) => {
+                if (relation.column1 === headerName || relation.column2 === headerName) {
+                    removeRelationCondition(index);
+                }
+            });
+        });
+    };
+
+    const resetConditionChanged = (changedHeaders) => {
+        const updatedHeaders = [...headers];
+        changedHeaders.forEach((headerName) => {
+            const headerIndex = updatedHeaders.findIndex(header => header.name === headerName);
+            if (headerIndex !== -1) {
+                updatedHeaders[headerIndex].conditionChanged = false;
+            }
+        });
+        setHeaders(updatedHeaders);
+    };
+
+    useEffect(() => {
         if (!templateData) {
             console.error("ไม่มีข้อมูล template ที่ส่งมา");
             navigate("/template");
@@ -61,9 +138,7 @@ const EditTemplate = () => {
 
         const calculations = templateData.condition?.calculations || [];
         setCalculationCondition(calculations.map(calculation => ({
-            addend: calculation.addend,
-            type: calculation.type,
-            operand: calculation.operand,
+            expression: calculation.expression,
             result: calculation.result
         })));
 
@@ -81,6 +156,11 @@ const EditTemplate = () => {
     const handleHeaderChange = (index, field, value) => {
         const updatedHeaders = [...headers];
         updatedHeaders[index][field] = value;
+
+        if (field === "condition") {
+            updatedHeaders[index].conditionChanged = true;
+        }
+
         setHeaders(updatedHeaders);
     };
 
@@ -100,7 +180,9 @@ const EditTemplate = () => {
         const newHeaders = [...headers];
         const [removed] = newHeaders.splice(index, 1);
         newHeaders.splice(index + direction, 0, removed);
+
         setHeaders(newHeaders);
+        setExpandedHeader(index + direction);
     };
 
     const openOptionDialog = (header) => {
@@ -114,7 +196,28 @@ const EditTemplate = () => {
     };
 
     const handleSelectOption = (option) => {
+        if (selectedConditions[option]) {
+            alert("เงื่อนไขนี้ถูกเพิ่มไปแล้ว");
+            return;
+        }
+
+        if (option === "calculation" && calculationCondition.length > 0) {
+            alert("เงื่อนไขการคำนวณถูกเพิ่มไปแล้ว");
+            return;
+        }
+    
+        if (option === "greaterless" && greaterLessCondition.length > 0) {
+            alert("เงื่อนไขการเปรียบเทียบถูกเพิ่มไปแล้ว");
+            return;
+        }
+    
+        if (option === "column-condition" && relationCondition.length > 0) {
+            alert("เงื่อนไขคอลัมน์สัมพันธ์กันถูกเพิ่มไปแล้ว");
+            return;
+        }
+    
         setIsOptionDialogOpen(false);
+    
         if (option === "calculation") {
             setIsCalculationDialogOpen(true);
         } else if (option === "greaterless") {
@@ -122,22 +225,7 @@ const EditTemplate = () => {
         } else if (option === "column-condition") {
             setIsColumnConditionDialogOpen(true);
         }
-    };
-
-    const handleColumnSelect = (columnName, columnType) => {
-        if (
-            (columnType === 'addend' && (selectedColumns.operand === columnName || selectedColumns.result === columnName)) ||
-            (columnType === 'operand' && (selectedColumns.addend === columnName || selectedColumns.result === columnName)) ||
-            (columnType === 'result' && (selectedColumns.addend === columnName || selectedColumns.operand === columnName))
-        ) {
-            return;
-        }
-
-        setSelectedColumns((prevState) => ({
-            ...prevState,
-            [columnType]: prevState[columnType] === columnName ? null : columnName,
-        }));
-    };
+    };    
 
     const handleGraterColumnSelect = (columnName, columnType) => {
         if (
@@ -182,7 +270,9 @@ const EditTemplate = () => {
         }
 
         setGreaterLessCondition(prevGreaterLess => [...prevGreaterLess, newGreaterLess]);
+        setSelectedConditions(prev => ({ ...prev, greaterless: true }));
 
+        setIsGreaterLessThanDialogOpen(false)
         setCompareType('');
         setSelectedColumns({
             addend: '',
@@ -195,44 +285,57 @@ const EditTemplate = () => {
         setGreaterLessCondition(updatedConditions);
     };
 
-    const handleCalculationTypeChange = (e) => {
-        setCalculationType(e.target.value);
+    const handleAddToExpression = (value, type) => {
+        if (type === "column") {
+            if (calculationExpression.some(item => item.value === value) || resultColumn === value) {
+                alert("คอลัมน์นี้ถูกเลือกไปแล้ว ไม่สามารถเลือกซ้ำได้");
+                return;
+            }
+
+            if (calculationExpression.length > 0 && calculationExpression[calculationExpression.length - 1].type === "column") {
+                alert("ต้องเลือกตัวดำเนินการก่อนเลือกคอลัมน์ใหม่");
+                return;
+            }
+
+            setCalculationExpression((prev) => [...prev, { value, type }]);
+            setIsColumnSelected(true);
+        } else if (type === "operator") {
+            if (calculationExpression.length === 0 || calculationExpression[calculationExpression.length - 1].type === "operator") {
+                alert("ต้องเลือกคอลัมน์ก่อนเลือกตัวดำเนินการ");
+                return;
+            }
+            setCalculationExpression((prev) => [...prev, { value, type }]);
+        }
     };
 
-    const addCondition = () => {
-        if (!calculationType || !selectedColumns.addend || !selectedColumns.operand || !selectedColumns.result) {
-            alert("กรุณากรอกค่าทั้งหมด");
+    const handleClearExpression = () => {
+        setIsCalculationDialogOpen(false)
+        setCalculationExpression([]);
+        setResultColumn("");
+        setIsColumnSelected(false);
+    };
+
+    const addComplexCondition = () => {
+        if (calculationExpression.length < 3 || !resultColumn) {
+            alert("กรุณากรอกสมการให้ครบถ้วน");
             return;
         }
 
-        const newCalculation = {
-            type: calculationType,
-            addend: selectedColumns.addend,
-            operand: selectedColumns.operand,
-            result: selectedColumns.result
+        if (calculationExpression[calculationExpression.length - 1].type !== "column") {
+            alert("สมการต้องลงท้ายด้วยคอลัมน์");
+            return;
+        }
+
+        const newCondition = {
+            expression: calculationExpression.map(item => item.value),
+            result: resultColumn,
         };
 
-        const isDuplicate = calculationCondition.some(
-            condition =>
-                condition.addend === newCalculation.addend &&
-                condition.type === newCalculation.type &&
-                condition.operand === newCalculation.operand &&
-                condition.result === newCalculation.result
-        );
+        setCalculationCondition((prev) => [...prev, newCondition]);
+        setSelectedConditions(prev => ({ ...prev, calculation: true }));
+        console.log(calculationCondition);
 
-        if (isDuplicate) {
-            alert("เงื่อนไขนี้ถูกเพิ่มไปแล้ว");
-            return;
-        }
-
-        setCalculationCondition(prevCalculations => [...prevCalculations, newCalculation]);
-
-        setCalculationType('');
-        setSelectedColumns({
-            addend: '',
-            operand: '',
-            result: ''
-        });
+        handleClearExpression();
     };
 
     const addColumnCondition = () => {
@@ -260,6 +363,9 @@ const EditTemplate = () => {
         }
 
         setRelationCondition((prevState) => [...prevState, newRelation]);
+        setSelectedConditions(prev => ({ ...prev, relationCondition: true }));
+
+        setIsColumnConditionDialogOpen(false)
         setSelectedFirstColumn('');
         setSelectedSecondColumn('');
         setSelectedCondition('');
@@ -276,6 +382,10 @@ const EditTemplate = () => {
 
     const handleSecondColumnChange = (e) => {
         setSelectedSecondColumn(e.target.value);
+    };
+
+    const handleRemoveLastExpression = () => {
+        setCalculationExpression(prev => prev.slice(0, -1));
     };
 
     const removeCalculationCondition = (index) => {
@@ -295,6 +405,7 @@ const EditTemplate = () => {
         }
 
         const updatedTemplate = {
+            template_id: templateData.template_id,
             templatename: fileName,
             headers,
             condition: {
@@ -308,7 +419,7 @@ const EditTemplate = () => {
         setIsSaving(true);
 
         try {
-            const response = await updateTemplate(userToken, templateData.templatename, updatedTemplate);
+            const response = await updateTemplate(userToken, templateData.template_id, updatedTemplate);
 
             if (response) {
                 navigate("/template");
@@ -490,7 +601,7 @@ const EditTemplate = () => {
                                 <ul className="list-disc pl-5 text-sm md:text-base">
                                     {calculationCondition.map((condition, index) => (
                                         <li key={index} className="mt-1 flex justify-between items-center">
-                                            {`${condition.addend} ${condition.type} ${condition.operand} = ${condition.result}`}
+                                            {`${condition.expression.join(" ")} = ${condition.result}`}
                                             <button
                                                 onClick={() => removeCalculationCondition(index)}
                                                 className="text-red-500 ml-2"
@@ -555,30 +666,33 @@ const EditTemplate = () => {
 
                                 <button
                                     className={`w-full py-2 px-4 rounded-md mb-2 transition 
-                                ${balanceColumns.length >= 3
+                                        ${balanceColumns.length >= 3 && !selectedConditions.calculation
                                             ? "bg-blue-500 text-white hover:bg-blue-600"
                                             : "bg-gray-400 text-gray-700 cursor-not-allowed"
                                         }`}
                                     onClick={() => handleSelectOption("calculation")}
-                                    disabled={balanceColumns.length < 3}
+                                    disabled={balanceColumns.length < 3 || selectedConditions.calculation}
                                 >
                                     ฟังก์ชันการคำนวณ
                                 </button>
 
-                                <button className={`w-full py-2 px-4 rounded-md mb-2 transition 
-                                ${balanceColumns.length >= 2
+                                <button 
+                                    className={`w-full py-2 px-4 rounded-md mb-2 transition 
+                                    ${balanceColumns.length >= 2 && !selectedConditions.greaterless
                                         ? "bg-blue-500 text-white hover:bg-blue-600"
                                         : "bg-gray-400 text-gray-700 cursor-not-allowed"
                                     }`}
                                     onClick={() => handleSelectOption("greaterless")}
-                                    disabled={balanceColumns.length < 2}
+                                    disabled={balanceColumns.length < 2 || selectedConditions.greaterless}
                                 >
                                     ฟังก์ชันการเปรียบเทียบ
                                 </button>
 
                                 <button
-                                    className="w-full py-2 px-4 bg-green-500 text-white rounded-md hover:bg-green-600"
+                                    className={`w-full py-2 px-4 bg-green-500 text-white rounded-md hover:bg-green-600 
+                                        ${selectedConditions.relationCondition ? "opacity-50 cursor-not-allowed" : ""}`}
                                     onClick={() => handleSelectOption("column-condition")}
+                                    disabled={selectedConditions.relationCondition}
                                 >
                                     เพิ่มเงื่อนไขคอลัมน์สัมพันธ์กัน
                                 </button>
@@ -595,10 +709,10 @@ const EditTemplate = () => {
                 })()}
 
                 {isCalculationDialogOpen && (
-                    <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
-                        <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-xl md:max-w-2xl overflow-y-auto max-h-[80vh]">
+                    <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50 p-4">
+                        <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-xl md:max-w-2xl max-h-[80vh] overflow-auto">
                             <h3 className="text-xl font-semibold mb-4 text-center">
-                                เลือกเงื่อนไขสำหรับ {selectedHeader?.name}
+                                เลือกเงื่อนไขสำหรับการคำนวณ
                             </h3>
 
                             <div className="space-y-4">
@@ -606,105 +720,97 @@ const EditTemplate = () => {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         เลือกคอลัมน์ที่จะคำนวณ
                                     </label>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                         {headers
                                             .filter((header) => header.condition === "balance")
                                             .map((header) => (
-                                                <div key={header.name} className="flex flex-col gap-2 p-2 bg-gray-100 rounded-md shadow-md">
-                                                    <h4 className="text-center font-medium text-gray-700">{header.name}</h4>
-
-                                                    <button
-                                                        onClick={() => handleColumnSelect(header.name, 'addend')}
-                                                        className={`px-4 py-2 rounded-md shadow-sm border 
-                                                    ${selectedColumns.addend === header.name
-                                                                ? 'bg-blue-600 text-white'
-                                                                : 'bg-white text-gray-700 hover:bg-blue-200'}
-                                                    transition`}
-                                                    >
-                                                        ตัวตั้ง (Addend)
-                                                    </button>
-
-                                                    <button
-                                                        onClick={() => handleColumnSelect(header.name, 'operand')}
-                                                        className={`px-4 py-2 rounded-md shadow-sm border 
-                                                    ${selectedColumns.operand === header.name
-                                                                ? 'bg-yellow-600 text-white'
-                                                                : 'bg-white text-gray-700 hover:bg-yellow-200'}
-                                                    transition`}
-                                                    >
-                                                        ตัวกระทำ (Operand)
-                                                    </button>
-
-                                                    <button
-                                                        onClick={() => handleColumnSelect(header.name, 'result')}
-                                                        className={`px-4 py-2 rounded-md shadow-sm border 
-                                                    ${selectedColumns.result === header.name
-                                                                ? 'bg-green-600 text-white'
-                                                                : 'bg-white text-gray-700 hover:bg-green-200'}
-                                                    transition`}
-                                                    >
-                                                        คอลัมน์ผลลัพธ์ (Result)
-                                                    </button>
-                                                </div>
-                                            ))}
+                                                <button
+                                                    key={header.name}
+                                                    onClick={() => handleAddToExpression(header.name, "column")}
+                                                    className={`px-4 py-2 border rounded-md ${calculationExpression.some(item => item.value === header.name) || resultColumn === header.name
+                                                        ? "bg-gray-400 cursor-not-allowed"
+                                                        : "bg-gray-200"
+                                                        }`}
+                                                    disabled={calculationExpression.some(item => item.value === header.name) || resultColumn === header.name} // Disable ปุ่มที่เลือกแล้ว
+                                                >
+                                                    {header.name}
+                                                </button>
+                                            ))
+                                        }
                                     </div>
-
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">เลือกประเภทการคำนวณ</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        เลือกตัวดำเนินการ
+                                    </label>
+                                    <div className="flex gap-2 flex-wrap">
+                                        {["+", "-", "*", "/"].map((op) => (
+                                            <button
+                                                key={op}
+                                                onClick={() => handleAddToExpression(op, "operator")}
+                                                disabled={calculationExpression.length === 0 || calculationExpression[calculationExpression.length - 1].type === "operator"}
+                                                className={`px-4 py-2 border rounded-md ${calculationExpression.length === 0 || calculationExpression[calculationExpression.length - 1].type === "operator"
+                                                    ? "bg-gray-400 cursor-not-allowed"
+                                                    : "bg-blue-200"
+                                                    }`}
+                                            >
+                                                {op}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <span className="font-bold">เงื่อนไข: </span>
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                        {calculationExpression.map((item, index) => (
+                                            <span key={index} className="inline-flex items-center rounded-md">
+                                                <span>{item.value}</span>
+                                            </span>
+                                        ))}
+                                    </div>
+                                    =
                                     <select
-                                        value={calculationType}
-                                        onChange={handleCalculationTypeChange}
-                                        className="w-full border border-gray-300 rounded-md p-2"
+                                        value={resultColumn}
+                                        onChange={(e) => setResultColumn(e.target.value)}
+                                        className="border p-1 ml-2 mt-3"
                                     >
-                                        <option value="">เลือกประเภทการคำนวณ</option>
-                                        <option value="+">บวก</option>
-                                        <option value="-">ลบ</option>
-                                        <option value="x">คูณ</option>
-                                        <option value="/">หาร</option>
+                                        <option value="">เลือกคอลัมน์ผลลัพธ์</option>
+                                        {headers
+                                            .filter(header => !calculationExpression.some(item => item.value === header.name)) // เงื่อนไขให้แสดงคอลัมน์ที่ยังไม่ถูกเลือก
+                                            .map((header) => (
+                                                <option key={header.name} value={header.name}>
+                                                    {header.name}
+                                                </option>
+                                            ))}
                                     </select>
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">เงื่อนไขการคำนวณ</label>
-                                    <input
-                                        type="text"
-                                        value={`${selectedColumns.addend} ${calculationType} ${selectedColumns.operand} = ${selectedColumns.result}`}
-                                        onChange={(e) => setCalculationCondition(e.target.value)}
-                                        className="w-full border border-gray-300 rounded-md p-2"
-                                        placeholder={`เช่น ${selectedColumns.addend} ${calculationType} ${selectedColumns.operand} = ${selectedColumns.result}`}
-                                    />
-                                    {calculationCondition.length > 0 && (
-                                        <div className="mt-4 mb-6">
-                                            <h4 className="text-lg font-semibold">เงื่อนไขที่เพิ่มเข้ามา:</h4>
-                                            <ul className="list-disc pl-5">
-                                                {calculationCondition.map((condition, index) => (
-                                                    <li key={index} className="flex justify-between items-center">
-                                                        {`${condition.addend} ${condition.type} ${condition.operand} = ${condition.result}`}
-                                                        <button
-                                                            onClick={() => removeCondition(index)}
-                                                            className="ml-2 text-red-600 hover:text-red-800"
-                                                        >
-                                                            ลบ
-                                                        </button>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex justify-between mt-4">
+                                <div className="flex flex-col md:flex-row gap-2 mt-4">
                                     <button
-                                        onClick={addCondition}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                        onClick={addComplexCondition}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md flex-1"
                                     >
                                         เพิ่มเงื่อนไข
                                     </button>
                                     <button
-                                        onClick={closeOptionDialog}
-                                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                                        onClick={handleClearExpression}
+                                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md flex-1"
+                                    >
+                                        ล้างข้อมูล
+                                    </button>
+                                    <button
+                                        onClick={handleRemoveLastExpression}
+                                        disabled={calculationExpression.length === 0}
+                                        className={`px-4 py-2 rounded-md flex-1 ${calculationExpression.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-red-500 text-white"
+                                            }`}
+                                    >
+                                        ลบทีละตัว
+                                    </button>
+                                    <button
+                                        onClick={() => setIsCalculationDialogOpen(false)}
+                                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md flex-1 hover:bg-gray-300"
                                     >
                                         ปิด
                                     </button>
@@ -943,6 +1049,35 @@ const EditTemplate = () => {
                     </div>
                 </div>
             )}
+
+            {showConditionDialog && (
+                <div className="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-120 shadow-lg text-center">
+                        <FontAwesomeIcon icon={faExclamationTriangle} className="text-yellow-500 text-4xl mb-4" />
+                        <h2 className="text-xl font-semibold mb-4">หัวข้อต่อไปนี้ถูกใช้ในเงื่อนไขอื่น</h2>
+                        <p className="text-lg text-blue-800">{changedHeaders.join(", ")}</p>
+                        <p className="text-gray-700 mt-2">ต้องการลบเงื่อนไขที่เกี่ยวข้องหรือไม่?</p>
+
+                        <div className="mt-6 flex justify-between gap-4">
+                            <button
+                                onClick={handleCancelDelete}
+                                className="flex items-center gap-2 bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+                            >
+                                <FontAwesomeIcon icon={faTimesCircle} />
+                                ยกเลิก
+                            </button>
+                            <button
+                                onClick={handleConfirmDelete}
+                                className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                            >
+                                <FontAwesomeIcon icon={faCheckCircle} />
+                                ลบเงื่อนไข
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 };
